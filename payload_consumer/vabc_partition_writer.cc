@@ -33,6 +33,7 @@
 #include "update_engine/payload_consumer/extent_map.h"
 #include "update_engine/payload_consumer/extent_reader.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
+#include "update_engine/payload_consumer/file_descriptor_utils.h"
 #include "update_engine/payload_consumer/install_plan.h"
 #include "update_engine/payload_consumer/partition_writer.h"
 #include "update_engine/payload_consumer/snapshot_extent_writer.h"
@@ -96,7 +97,17 @@ VABCPartitionWriter::VABCPartitionWriter(
 bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
                                bool source_may_exist,
                                size_t next_op_index) {
-  xor_map_ = ComputeXorMap(partition_update_.merge_operations());
+  if (dynamic_control_->GetVirtualAbCompressionXorFeatureFlag().IsEnabled()) {
+    xor_map_ = ComputeXorMap(partition_update_.merge_operations());
+    if (xor_map_.size() > 0) {
+      LOG(INFO) << "Virtual AB Compression with XOR is enabled";
+    } else {
+      LOG(INFO) << "Device supports Virtual AB compression with XOR, but OTA "
+                   "package does not.";
+    }
+  } else {
+    LOG(INFO) << "Virtual AB Compression with XOR is disabled.";
+  }
   TEST_AND_RETURN_FALSE(install_plan != nullptr);
   if (source_may_exist && install_part_.source_size > 0) {
     TEST_AND_RETURN_FALSE(!install_part_.source_path.empty());
@@ -267,9 +278,16 @@ std::unique_ptr<ExtentWriter> VABCPartitionWriter::CreateBaseExtentWriter() {
 
 [[nodiscard]] bool VABCPartitionWriter::PerformSourceCopyOperation(
     const InstallOperation& operation, ErrorCode* error) {
-  // TODO(zhangkelvin) Probably just ignore SOURCE_COPY? They should be taken
-  // care of during Init();
-  return true;
+  // COPY ops are already handled during Init(), no need to do actual work, but
+  // we still want to verify that all blocks contain expected data.
+  auto source_fd = std::make_shared<EintrSafeFileDescriptor>();
+  TEST_AND_RETURN_FALSE_ERRNO(
+      source_fd->Open(install_part_.source_path.c_str(), O_RDONLY));
+  if (!operation.has_src_sha256_hash()) {
+    return true;
+  }
+  return PartitionWriter::ValidateSourceHash(
+      operation, source_fd, block_size_, error);
 }
 
 bool VABCPartitionWriter::PerformReplaceOperation(const InstallOperation& op,

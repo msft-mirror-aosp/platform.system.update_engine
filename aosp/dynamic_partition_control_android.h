@@ -21,7 +21,7 @@
 #include <set>
 #include <string>
 #include <string_view>
-#include <vector>
+#include <array>
 
 #include <base/files/file_util.h>
 #include <libsnapshot/auto_device.h>
@@ -44,6 +44,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   FeatureFlag GetDynamicPartitionsFeatureFlag() override;
   FeatureFlag GetVirtualAbFeatureFlag() override;
   FeatureFlag GetVirtualAbCompressionFeatureFlag() override;
+  FeatureFlag GetVirtualAbCompressionXorFeatureFlag() override;
   bool OptimizeOperation(const std::string& partition_name,
                          const InstallOperation& operation,
                          InstallOperation* optimized) override;
@@ -339,6 +340,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
   const FeatureFlag dynamic_partitions_;
   const FeatureFlag virtual_ab_;
   const FeatureFlag virtual_ab_compression_;
+  const FeatureFlag virtual_ab_compression_xor_;
   std::unique_ptr<android::snapshot::ISnapshotManager> snapshot_;
   std::unique_ptr<android::snapshot::AutoDevice> metadata_device_;
   bool target_supports_snapshot_ = false;
@@ -348,7 +350,9 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
 
   uint32_t source_slot_ = UINT32_MAX;
   uint32_t target_slot_ = UINT32_MAX;
-  std::vector<std::vector<std::string>> dynamic_partition_list_{2UL};
+  // We assume that there's only 2 slots, A and B. This assumption is unlikely
+  // to change in the future. And certaintly won't change at runtime.
+  std::array<std::vector<std::string>, 2> dynamic_partition_list_{};
 
   DISALLOW_COPY_AND_ASSIGN(DynamicPartitionControlAndroid);
 };
