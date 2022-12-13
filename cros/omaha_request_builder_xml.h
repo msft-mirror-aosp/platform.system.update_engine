@@ -65,7 +65,7 @@ struct OmahaEvent {
   enum Result {
     kResultError = 0,
     kResultSuccess = 1,
-    kResultUpdateDeferred = 9,  // When we ignore/defer updates due to policy.
+    kResultUpdateDeferred = 9,  // When we ignore/defer updates.
   };
 
   OmahaEvent()

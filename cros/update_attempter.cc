@@ -1872,6 +1872,7 @@ ErrorCode UpdateAttempter::GetLastUpdateError() {
     case ErrorCode::kNoUpdate:
     case ErrorCode::kInvalidateLastUpdate:
     case ErrorCode::kOmahaErrorInHTTPResponse:
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
       return attempt_error_code_;
     case ErrorCode::kInternalLibCurlError:
     case ErrorCode::kUnresolvedHostError:
@@ -1949,6 +1950,7 @@ void UpdateAttempter::CreatePendingErrorEvent(AbstractAction* action,
   OmahaEvent::Result event_result;
   switch (code) {
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
     case ErrorCode::kOmahaUpdateDeferredPerPolicy:
     case ErrorCode::kOmahaUpdateDeferredForBackoff:
       event_result = OmahaEvent::kResultUpdateDeferred;

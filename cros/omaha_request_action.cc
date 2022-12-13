@@ -1209,6 +1209,7 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
     case ErrorCode::kOmahaUpdateIgnoredPerPolicy:
     case ErrorCode::kOmahaUpdateIgnoredOverCellular:
     case ErrorCode::kOmahaUpdateIgnoredOverMetered:
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
       result = metrics::CheckResult::kUpdateAvailable;
       reaction = metrics::CheckReaction::kIgnored;
       break;
@@ -1256,7 +1257,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(ErrorCode* error) const {
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response_.version) {
       LOG(INFO) << "Received version that we rolled back from. Ignoring.";
-      *error = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
+      *error = ErrorCode::kUpdateIgnoredRollbackVersion;
       return true;
     }
   }

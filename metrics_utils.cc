@@ -131,6 +131,7 @@ metrics::AttemptResult GetAttemptResult(ErrorCode code) {
     case ErrorCode::kDownloadCancelledPerPolicy:
     case ErrorCode::kNonCriticalUpdateEnrollmentRecovery:
     case ErrorCode::kRepeatedFpFromOmahaError:
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
       return metrics::AttemptResult::kUpdateSkipped;
 
     // Special flags. These can't happen (we mask them out above) but
@@ -254,6 +255,7 @@ metrics::DownloadErrorCode GetDownloadErrorCode(ErrorCode code) {
     case ErrorCode::kOmahaUpdateIgnoredOverMetered:
     case ErrorCode::kScaledInstallationError:
     case ErrorCode::kNonCriticalUpdateEnrollmentRecovery:
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
       break;
 
     // Special flags. These can't happen (we mask them out above) but

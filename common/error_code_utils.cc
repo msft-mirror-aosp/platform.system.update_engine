@@ -185,6 +185,8 @@ string ErrorCodeToString(ErrorCode code) {
       return "ErrorCode::kScaledInstallationError";
     case ErrorCode::kNonCriticalUpdateEnrollmentRecovery:
       return "ErrorCode::kNonCriticalUpdateEnrollmentRecovery";
+    case ErrorCode::kUpdateIgnoredRollbackVersion:
+      return "ErrorCode::kUpdateIgnoredRollbackVersion";
       // Don't add a default case to let the compiler warn about newly added
       // error codes which should be added here.
   }

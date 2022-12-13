@@ -92,6 +92,7 @@ enum class ErrorCode : int {
   kOmahaUpdateIgnoredOverMetered = 66,
   kScaledInstallationError = 67,
   kNonCriticalUpdateEnrollmentRecovery = 68,
+  kUpdateIgnoredRollbackVersion = 69,
 
   // VERY IMPORTANT! When adding new error codes:
   //

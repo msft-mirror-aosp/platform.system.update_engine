@@ -1050,13 +1050,16 @@ TEST_F(OmahaRequestActionTest, ValidUpdateOverMeteredBlocked) {
   EXPECT_FALSE(response_.update_exists);
 }
 
+// Verify that update checks will not try to download an update if it
+// corresponds to the rollback version. It should be ignored.
 TEST_F(OmahaRequestActionTest, ValidUpdateBlockedByRollback) {
   string rollback_version = "1234.0.0";
   MockPayloadState mock_payload_state;
   FakeSystemState::Get()->set_payload_state(&mock_payload_state);
   fake_update_response_.version = rollback_version;
   tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
-  tuc_params_.expected_code = ErrorCode::kOmahaUpdateIgnoredPerPolicy;
+  tuc_params_.expected_code = ErrorCode::kUpdateIgnoredRollbackVersion;
+  tuc_params_.expected_check_result = metrics::CheckResult::kUpdateAvailable;
   tuc_params_.expected_check_reaction = metrics::CheckReaction::kIgnored;
 
   EXPECT_CALL(mock_payload_state, GetRollbackVersion())
