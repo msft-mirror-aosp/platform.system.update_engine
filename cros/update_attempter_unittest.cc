@@ -190,7 +190,7 @@ class UpdateAttempterUnderTest : public UpdateAttempter {
 
   // Wrap the update scheduling method, allowing us to opt out of scheduled
   // updates for testing purposes.
-  bool ScheduleUpdates() override {
+  bool ScheduleUpdates(const ScheduleUpdatesParams& params = {}) override {
     schedule_updates_called_ = true;
     if (do_schedule_updates_)
       return UpdateAttempter::ScheduleUpdates();
@@ -467,7 +467,9 @@ void UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow() {
   };
   EXPECT_CALL(*processor_, EnqueueAction(Pointee(_)))
       .WillRepeatedly(Invoke(CheckSessionId));
-  attempter_.BuildUpdateActions(false);
+  attempter_.BuildUpdateActions({
+      .interactive = false,
+  });
   // Validate that all the session IDs are the same.
   EXPECT_EQ(1, session_ids.size());
   ScheduleQuitMainLoop();
@@ -494,7 +496,9 @@ void UpdateAttempterTest::SessionIdTestInDownloadAction() {
   };
   EXPECT_CALL(*processor_, EnqueueAction(Pointee(_)))
       .WillRepeatedly(Invoke(CheckSessionIdInDownloadAction));
-  attempter_.BuildUpdateActions(false);
+  attempter_.BuildUpdateActions({
+      .interactive = false,
+  });
   // Validate that X-Goog-Update_SessionId is set correctly in HTTP Header.
   EXPECT_EQ(attempter_.session_id_, header_value);
   ScheduleQuitMainLoop();

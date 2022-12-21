@@ -198,6 +198,14 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       break;
   }
 
+  // Force fw update if requested.
+  if (force_fw_update_) {
+    LOG(INFO) << "Forcing firmware update.";
+    command.push_back("--force_update_firmware");
+  } else {
+    LOG(INFO) << "Not forcing firmware update.";
+  }
+
   current_command_ = Subprocess::Get().ExecFlags(
       command,
       Subprocess::kRedirectStderrToStdout,

@@ -193,13 +193,27 @@ bool UpdateAttempter::IsUpdating() {
   return pm_ == ProcessMode::UPDATE;
 }
 
-bool UpdateAttempter::ScheduleUpdates() {
-  if (IsBusyOrUpdateScheduled())
+bool UpdateAttempter::ScheduleUpdates(const ScheduleUpdatesParams& params) {
+  // Overrides based off of `ScheduleUpdateParams`.
+  auto UpdateCheckAllowedPolicyDataOverrider = [this, params]() {
+    LOG(INFO) << "Overriding scheduled update check allowed policy data.";
+    policy_data_->update_check_params.force_fw_update = params.force_fw_update;
+  };
+
+  if (IsBusyOrUpdateScheduled()) {
+    // Ignoring other special cases of auto scenarios, allow override only while
+    // policy hasn't been evaluated.
+    if (status_ == UpdateStatus::IDLE) {
+      UpdateCheckAllowedPolicyDataOverrider();
+    }
     return false;
+  }
 
   // We limit the async policy request to a reasonably short time, to avoid a
   // starvation due to a transient bug.
   policy_data_.reset(new UpdateCheckAllowedPolicyData());
+  UpdateCheckAllowedPolicyDataOverrider();
+
   SystemState::Get()->update_manager()->PolicyRequest(
       std::make_unique<UpdateCheckAllowedPolicy>(),
       policy_data_,  // Do not move because we don't want transfer of ownership.
@@ -359,7 +373,7 @@ void UpdateAttempter::Update(const UpdateCheckParams& params) {
     return;
   }
 
-  BuildUpdateActions(params.interactive);
+  BuildUpdateActions(params);
 
   SetStatusAndNotify(UpdateStatus::CHECKING_FOR_UPDATE);
 
@@ -825,9 +839,11 @@ void UpdateAttempter::CalculateDlcParams() {
   omaha_request_params_->set_is_install(!IsUpdating());
 }
 
-void UpdateAttempter::BuildUpdateActions(bool interactive) {
+void UpdateAttempter::BuildUpdateActions(const UpdateCheckParams& params) {
   CHECK(!processor_->IsRunning());
   processor_->set_delegate(this);
+
+  bool interactive = params.interactive;
 
   // The session ID needs to be kept throughout the update flow. The value
   // of the session ID will reset/update only when it is a new update flow.
@@ -888,7 +904,9 @@ void UpdateAttempter::BuildUpdateActions(bool interactive) {
       session_id_);
 
   auto postinstall_runner_action = std::make_unique<PostinstallRunnerAction>(
-      SystemState::Get()->boot_control(), SystemState::Get()->hardware());
+      SystemState::Get()->boot_control(),
+      SystemState::Get()->hardware(),
+      params.force_fw_update);
   postinstall_runner_action->set_delegate(this);
 
   // Bond them together. We have to use the leaf-types when calling
@@ -1063,7 +1081,9 @@ bool UpdateAttempter::CheckForUpdate(
     // we need an update to be scheduled for the
     // |forced_update_pending_callback_| to have an effect. Here we don't need
     // to care about the return value from |ScheduleUpdate()|.
-    ScheduleUpdates();
+    ScheduleUpdates({
+        .force_fw_update = update_params.force_fw_update(),
+    });
     forced_update_pending_callback_->Run(true, interactive);
   }
   return true;

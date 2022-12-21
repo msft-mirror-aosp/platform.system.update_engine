@@ -42,6 +42,9 @@ struct UpdateCheckParams {
 
   // Whether the allowed update is interactive (user-initiated) or periodic.
   bool interactive{false};
+
+  // Forces a fw update with OS update.
+  bool force_fw_update{false};
 };
 
 class UpdateCheckAllowedPolicyData : public PolicyDataInterface {

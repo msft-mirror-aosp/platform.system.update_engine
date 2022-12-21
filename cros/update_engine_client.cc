@@ -340,6 +340,8 @@ int UpdateEngineClient::ProcessFlags() {
                -1,
                "Override status of the update engine with a value in"
                "Operation of update_engine.proto. Used for testing.");
+  DEFINE_bool(
+      force_fw_update, false, "Forces a fw update with the OS update check.");
 
   // Boilerplate init commands.
   base::CommandLine::Init(argc_, argv_);
@@ -621,6 +623,7 @@ int UpdateEngineClient::ProcessFlags() {
     update_params.set_skip_applying(FLAGS_skip_applying);
     update_params.mutable_update_flags()->set_non_interactive(
         !FLAGS_interactive);
+    update_params.set_force_fw_update(FLAGS_force_fw_update);
     if (!client_->Update(update_params)) {
       LOG(ERROR) << "Error checking for update.";
       return 1;

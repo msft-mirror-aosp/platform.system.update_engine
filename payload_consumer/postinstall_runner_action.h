@@ -40,8 +40,11 @@ class BootControlInterface;
 class PostinstallRunnerAction : public InstallPlanAction {
  public:
   PostinstallRunnerAction(BootControlInterface* boot_control,
-                          HardwareInterface* hardware)
-      : boot_control_(boot_control), hardware_(hardware) {}
+                          HardwareInterface* hardware,
+                          bool force_fw_update = false)
+      : boot_control_(boot_control),
+        hardware_(hardware),
+        force_fw_update_(force_fw_update) {}
   PostinstallRunnerAction(const PostinstallRunnerAction&) = delete;
   PostinstallRunnerAction& operator=(const PostinstallRunnerAction&) = delete;
 
@@ -146,6 +149,9 @@ class PostinstallRunnerAction : public InstallPlanAction {
 
   // A buffer of a partial read line from the progress file descriptor.
   std::string progress_buffer_;
+
+  // Forces a fw update with OS update.
+  bool force_fw_update_{false};
 };
 
 }  // namespace chromeos_update_engine

@@ -71,6 +71,10 @@ class UpdateAttempter : public ActionProcessorDelegate,
                         public PostinstallRunnerAction::DelegateInterface,
                         public DaemonStateInterface {
  public:
+  struct ScheduleUpdatesParams {
+    bool force_fw_update{false};
+  };
+
   using UpdateStatus = update_engine::UpdateStatus;
   static const int kMaxDeltaUpdateFailures;
 
@@ -88,7 +92,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Initiates scheduling of update checks.
   // Returns true if update check is scheduled.
-  virtual bool ScheduleUpdates();
+  virtual bool ScheduleUpdates(const ScheduleUpdatesParams& params = {
+                                   .force_fw_update = false,
+                               });
 
   // Checks for update and, if a newer version is available, attempts to update
   // the system.
@@ -453,7 +459,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Helper method of Update() to construct the sequence of actions to
   // be performed for an update check. Please refer to
   // Update() method for the meaning of the parameters.
-  void BuildUpdateActions(bool interactive);
+  void BuildUpdateActions(
+      const chromeos_update_manager::UpdateCheckParams& params);
 
   // Decrements the count in the kUpdateCheckCountFilePath.
   // Returns True if successfully decremented, false otherwise.
