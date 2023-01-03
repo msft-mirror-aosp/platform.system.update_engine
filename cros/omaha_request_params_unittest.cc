@@ -157,9 +157,12 @@ TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
   EXPECT_TRUE(params_.IsValidChannel("stable-channel"));
   EXPECT_TRUE(params_.IsValidChannel("beta-channel"));
   EXPECT_TRUE(params_.IsValidChannel("dev-channel"));
+  EXPECT_TRUE(params_.IsValidChannel("ltc-channel"));
+  EXPECT_TRUE(params_.IsValidChannel("lts-channel"));
   EXPECT_FALSE(params_.IsValidChannel("testimage-channel"));
   EXPECT_FALSE(params_.IsValidChannel("dogfood-channel"));
   EXPECT_FALSE(params_.IsValidChannel("some-channel"));
+  EXPECT_FALSE(params_.IsValidChannel("lts-invalid"));
   EXPECT_FALSE(params_.IsValidChannel(""));
   params_.image_props_.allow_arbitrary_channels = true;
   EXPECT_TRUE(params_.IsValidChannel("some-channel"));
@@ -211,9 +214,13 @@ TEST_F(OmahaRequestParamsTest, ChannelIndexTest) {
   int dev = params_.GetChannelIndex("dev-channel");
   int beta = params_.GetChannelIndex("beta-channel");
   int stable = params_.GetChannelIndex("stable-channel");
+  int ltc = params_.GetChannelIndex("ltc-channel");
+  int lts = params_.GetChannelIndex("lts-channel");
   EXPECT_LE(canary, dev);
   EXPECT_LE(dev, beta);
   EXPECT_LE(beta, stable);
+  EXPECT_LE(stable, ltc);
+  EXPECT_LE(ltc, lts);
 
   // testimage-channel or other names are not recognized, so index will be -1.
   int testimage = params_.GetChannelIndex("testimage-channel");

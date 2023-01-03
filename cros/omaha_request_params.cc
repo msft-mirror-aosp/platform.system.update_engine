@@ -54,6 +54,8 @@ const char* kChannelsByStability[] = {
     "dev-channel",
     "beta-channel",
     "stable-channel",
+    "ltc-channel",
+    "lts-channel",
 };
 }  // namespace
 
