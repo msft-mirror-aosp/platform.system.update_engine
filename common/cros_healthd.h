@@ -71,17 +71,19 @@ class CrosHealthd : public CrosHealthdInterface {
                             ash::cros_healthd::mojom::TelemetryInfoPtr result);
 
   // Parsing helpers for `OnProbTelemetryInfo()` .
-  bool ParseSystemResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
-                         TelemetryInfo* telemetry_info);
-  bool ParseMemoryResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
-                         TelemetryInfo* telemetry_info);
-  bool ParseNonRemovableBlockDeviceResult(
+  static bool ParseSystemResult(
       ash::cros_healthd::mojom::TelemetryInfoPtr* result,
       TelemetryInfo* telemetry_info);
-  bool ParseCpuResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
-                      TelemetryInfo* telemetry_info);
-  bool ParseBusResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
-                      TelemetryInfo* telemetry_info);
+  static bool ParseMemoryResult(
+      ash::cros_healthd::mojom::TelemetryInfoPtr* result,
+      TelemetryInfo* telemetry_info);
+  static bool ParseNonRemovableBlockDeviceResult(
+      ash::cros_healthd::mojom::TelemetryInfoPtr* result,
+      TelemetryInfo* telemetry_info);
+  static bool ParseCpuResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
+                             TelemetryInfo* telemetry_info);
+  static bool ParseBusResult(ash::cros_healthd::mojom::TelemetryInfoPtr* result,
+                             TelemetryInfo* telemetry_info);
 
   std::unique_ptr<TelemetryInfo> telemetry_info_;
 

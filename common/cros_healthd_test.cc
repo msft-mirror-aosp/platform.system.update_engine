@@ -25,18 +25,11 @@
 
 namespace chromeos_update_engine {
 
-class CrosHealthdTest : public ::testing::Test {
- protected:
-  void SetUp() override {}
-
-  CrosHealthd cros_healthd_;
-};
-
-TEST_F(CrosHealthdTest, ParseSystemResultCheck) {
+TEST(CrosHealthdTest, ParseSystemResultCheck) {
   {
     TelemetryInfo telemetry_info{};
     auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
-    cros_healthd_.ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ("", telemetry_info.system_info.dmi_info.sys_vendor);
     EXPECT_EQ("", telemetry_info.system_info.dmi_info.product_name);
     EXPECT_EQ("", telemetry_info.system_info.dmi_info.product_version);
@@ -63,7 +56,7 @@ TEST_F(CrosHealthdTest, ParseSystemResultCheck) {
     auto& os_info_ptr = system_info_ptr->os_info;
     os_info_ptr->boot_mode = ash::cros_healthd::mojom::BootMode::kCrosEfi;
 
-    cros_healthd_.ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ("fake-product-name",
               telemetry_info.system_info.dmi_info.product_name);
     EXPECT_EQ("fake-bios-version",
@@ -91,7 +84,7 @@ TEST_F(CrosHealthdTest, ParseSystemResultCheck) {
     auto& os_info_ptr = system_info_ptr->os_info;
     os_info_ptr->boot_mode = ash::cros_healthd::mojom::BootMode::kCrosEfi;
 
-    cros_healthd_.ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseSystemResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ("fake-sys-vendor",
               telemetry_info.system_info.dmi_info.sys_vendor);
     EXPECT_EQ("fake-product-name",
@@ -105,11 +98,11 @@ TEST_F(CrosHealthdTest, ParseSystemResultCheck) {
   }
 }
 
-TEST_F(CrosHealthdTest, ParseMemoryResultCheck) {
+TEST(CrosHealthdTest, ParseMemoryResultCheck) {
   {
     TelemetryInfo telemetry_info{};
     auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
-    cros_healthd_.ParseMemoryResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseMemoryResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ(uint32_t(0), telemetry_info.memory_info.total_memory_kib);
   }
   {
@@ -123,17 +116,17 @@ TEST_F(CrosHealthdTest, ParseMemoryResultCheck) {
         telemetry_info_ptr->memory_result->get_memory_info();
     memory_info_ptr->total_memory_kib = uint32_t(123);
 
-    cros_healthd_.ParseMemoryResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseMemoryResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ(uint32_t(123), telemetry_info.memory_info.total_memory_kib);
   }
 }
 
-TEST_F(CrosHealthdTest, ParseNonRemovableBlockDeviceResultCheck) {
+TEST(CrosHealthdTest, ParseNonRemovableBlockDeviceResultCheck) {
   {
     TelemetryInfo telemetry_info{};
     auto telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
-    cros_healthd_.ParseNonRemovableBlockDeviceResult(&telemetry_info_ptr,
-                                                     &telemetry_info);
+    CrosHealthd::ParseNonRemovableBlockDeviceResult(&telemetry_info_ptr,
+                                                    &telemetry_info);
     EXPECT_TRUE(telemetry_info.block_device_info.empty());
   }
   {
@@ -151,17 +144,17 @@ TEST_F(CrosHealthdTest, ParseNonRemovableBlockDeviceResultCheck) {
         telemetry_info_ptr->block_device_result->get_block_device_info();
     block_device_info_ptr.front()->size = uint64_t(123);
 
-    cros_healthd_.ParseNonRemovableBlockDeviceResult(&telemetry_info_ptr,
-                                                     &telemetry_info);
+    CrosHealthd::ParseNonRemovableBlockDeviceResult(&telemetry_info_ptr,
+                                                    &telemetry_info);
     EXPECT_EQ(uint64_t(123), telemetry_info.block_device_info.front().size);
   }
 }
 
-TEST_F(CrosHealthdTest, ParseCpuResultCheck) {
+TEST(CrosHealthdTest, ParseCpuResultCheck) {
   {
     TelemetryInfo telemetry_info{};
     auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
-    cros_healthd_.ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_TRUE(telemetry_info.cpu_info.physical_cpus.empty());
   }
   {
@@ -179,7 +172,7 @@ TEST_F(CrosHealthdTest, ParseCpuResultCheck) {
 
     // Missing values, don't set any values.
 
-    cros_healthd_.ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_TRUE(telemetry_info.cpu_info.physical_cpus.empty());
   }
   {
@@ -198,20 +191,20 @@ TEST_F(CrosHealthdTest, ParseCpuResultCheck) {
     auto& physical_cpus_ptr = cpu_info_ptr->physical_cpus;
     physical_cpus_ptr.front()->model_name = "fake-model-name";
 
-    cros_healthd_.ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
+    CrosHealthd::ParseCpuResult(&telemetry_info_ptr, &telemetry_info);
     EXPECT_EQ("fake-model-name",
               telemetry_info.cpu_info.physical_cpus.front().model_name);
   }
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckMissingBusResult) {
+TEST(CrosHealthdTest, ParseBusResultCheckMissingBusResult) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   EXPECT_TRUE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckMissingBusInfo) {
+TEST(CrosHealthdTest, ParseBusResultCheckMissingBusInfo) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -220,11 +213,11 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckMissingBusInfo) {
 
   bus_devices_ptr.emplace_back(ash::cros_healthd::mojom::BusDevice::New());
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   EXPECT_TRUE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckPciBusDefault) {
+TEST(CrosHealthdTest, ParseBusResultCheckPciBusDefault) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -237,11 +230,11 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckPciBusDefault) {
   bus_device_ptr->bus_info = ash::cros_healthd::mojom::BusInfo::NewPciBusInfo(
       ash::cros_healthd::mojom::PciBusInfo::New());
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   EXPECT_FALSE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckPciBus) {
+TEST(CrosHealthdTest, ParseBusResultCheckPciBus) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -267,7 +260,7 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckPciBus) {
                                                 device_id,
                                                 std::move(driver)));
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   ASSERT_EQ(telemetry_info.bus_devices.size(), 1);
 
   const auto* pci_bus_info = std::get_if<TelemetryInfo::BusDevice::PciBusInfo>(
@@ -278,7 +271,7 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckPciBus) {
   EXPECT_EQ(pci_bus_info->driver, "some-driver");
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckUsbBusDefault) {
+TEST(CrosHealthdTest, ParseBusResultCheckUsbBusDefault) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -291,11 +284,11 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckUsbBusDefault) {
   bus_device_ptr->bus_info = ash::cros_healthd::mojom::BusInfo::NewUsbBusInfo(
       ash::cros_healthd::mojom::UsbBusInfo::New());
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   EXPECT_FALSE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckUsbBus) {
+TEST(CrosHealthdTest, ParseBusResultCheckUsbBus) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -321,7 +314,7 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckUsbBus) {
                                                 product_id,
                                                 std::move(interfaces)));
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   ASSERT_EQ(telemetry_info.bus_devices.size(), 1);
 
   const auto* usb_bus_info = std::get_if<TelemetryInfo::BusDevice::UsbBusInfo>(
@@ -331,7 +324,7 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckUsbBus) {
   EXPECT_EQ(usb_bus_info->product_id, product_id);
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckThunderboltBusDefault) {
+TEST(CrosHealthdTest, ParseBusResultCheckThunderboltBusDefault) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -345,12 +338,12 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckThunderboltBusDefault) {
       ash::cros_healthd::mojom::BusInfo::NewThunderboltBusInfo(
           ash::cros_healthd::mojom::ThunderboltBusInfo::New());
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   // Thunderbolt is not parsed yet.
   EXPECT_TRUE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckThunderboltBus) {
+TEST(CrosHealthdTest, ParseBusResultCheckThunderboltBus) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -371,12 +364,12 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckThunderboltBus) {
   thunderbolt_bus_info_ptr->thunderbolt_interfaces.emplace_back(
       ash::cros_healthd::mojom::ThunderboltBusInterfaceInfo::New());
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   // Thunderbolt is not parsed yet.
   EXPECT_TRUE(telemetry_info.bus_devices.empty());
 }
 
-TEST_F(CrosHealthdTest, ParseBusResultCheckAllBus) {
+TEST(CrosHealthdTest, ParseBusResultCheckAllBus) {
   TelemetryInfo telemetry_info{};
   auto&& telemetry_info_ptr = ash::cros_healthd::mojom::TelemetryInfo::New();
   telemetry_info_ptr->bus_result =
@@ -436,7 +429,7 @@ TEST_F(CrosHealthdTest, ParseBusResultCheckAllBus) {
         ash::cros_healthd::mojom::ThunderboltBusInterfaceInfo::New());
   }
 
-  cros_healthd_.ParseBusResult(&telemetry_info_ptr, &telemetry_info);
+  CrosHealthd::ParseBusResult(&telemetry_info_ptr, &telemetry_info);
   ASSERT_EQ(telemetry_info.bus_devices.size(), 2);
 
   // Check PCI bus info.
