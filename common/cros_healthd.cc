@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <base/check.h>
+#include <base/files/scoped_file.h>
 #include <base/logging.h>
 #include <base/synchronization/waitable_event.h>
 #include <brillo/dbus/dbus_method_invoker.h>
@@ -137,15 +138,14 @@ void CrosHealthd::FinalizeBootstrap(BootstrapMojoCallback callback,
   }
 
   mojo::PlatformChannel channel;
-  brillo::dbus_utils::FileDescriptor fd(
-      channel.TakeRemoteEndpoint().TakePlatformHandle().TakeFD().release());
   brillo::ErrorPtr error;
   auto response = brillo::dbus_utils::CallMethodAndBlock(
       GetCrosHealthdObjectProxy(),
       diagnostics::kCrosHealthdServiceInterface,
       diagnostics::kCrosHealthdBootstrapMojoConnectionMethod,
       &error,
-      fd,
+      brillo::dbus_utils::FileDescriptor(
+          channel.TakeRemoteEndpoint().TakePlatformHandle().TakeFD()),
       /*is_chrome=*/false);
   if (!response) {
     LOG(ERROR) << "Failed to bootstrap mojo connection with cros_healthd.";
