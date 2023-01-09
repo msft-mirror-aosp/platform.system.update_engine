@@ -26,18 +26,14 @@ std::unique_ptr<CrosHealthdInterface> CreateCrosHealthd() {
   return std::make_unique<CrosHealthdStub>();
 }
 
-void CrosHealthdStub::BootstrapMojo(BootstrapMojoCallback callback) {
-  std::move(callback).Run(true);
-}
-
 TelemetryInfo* const CrosHealthdStub::GetTelemetryInfo() {
   return nullptr;
 }
 
 void CrosHealthdStub::ProbeTelemetryInfo(
     const std::unordered_set<TelemetryCategoryEnum>& categories,
-    ProbeTelemetryInfoCallback once_callback) {
-  std::move(once_callback).Run({});
+    base::OnceClosure once_callback) {
+  std::move(once_callback).Run();
 }
 
 }  // namespace chromeos_update_engine

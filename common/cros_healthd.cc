@@ -26,22 +26,22 @@
 #include <base/check.h>
 #include <base/files/scoped_file.h>
 #include <base/logging.h>
-#include <base/synchronization/waitable_event.h>
-#include <brillo/dbus/dbus_method_invoker.h>
-#include <brillo/dbus/file_descriptor.h>
-#include <dbus/bus.h>
-#include <dbus/cros_healthd/dbus-constants.h>
-#include <dbus/message.h>
+#include <base/time/time.h>
+#include <chromeos/mojo/service_constants.h>
+#include <mojo/public/cpp/bindings/callback_helpers.h>
 #include <mojo/public/cpp/platform/platform_channel.h>
 #include <mojo/public/cpp/system/invitation.h>
-
-#include "update_engine/cros/dbus_connection.h"
+#include <mojo_service_manager/lib/connect.h>
 
 namespace chromeos_update_engine {
 
 namespace {
 
 using ::ash::cros_healthd::mojom::ProbeCategoryEnum;
+
+// The timeout for connecting to the cros_healthd. This should not happen in the
+// normal case.
+constexpr base::TimeDelta kCrosHealthdConnectingTimeout = base::Minutes(3);
 
 #define SET_MOJO_VALUE(x) \
   { TelemetryCategoryEnum::x, ProbeCategoryEnum::x }
@@ -73,18 +73,44 @@ void PrintError(const ash::cros_healthd::mojom::ProbeErrorPtr& error,
 
 std::unique_ptr<CrosHealthdInterface> CreateCrosHealthd() {
   auto cros_healthd = std::make_unique<CrosHealthd>();
-  // Call init, instead of in constructor as testing/mocks don't require the
-  // `Init()` call.
-  cros_healthd->Init();
+  // Call mojo bootstrap, instead of in constructor as testing/mocks don't
+  // require the `BootstrapMojo()` call.
+  cros_healthd->BootstrapMojo();
   return cros_healthd;
 }
 
-void CrosHealthd::Init() {
+void CrosHealthd::BootstrapMojo() {
+  // TODO(b/264832802): Move these initialization to a new interface.
+  // These operations (`mojo::core::Init()` and connecting to mojo service
+  // manager) could be done in each process only once. If we want to add other
+  // mojo services, we must reuse these mojo initiailizations.
   mojo::core::Init();
   ipc_support_ = std::make_unique<mojo::core::ScopedIPCSupport>(
       base::ThreadTaskRunnerHandle::Get() /* io_thread_task_runner */,
       mojo::core::ScopedIPCSupport::ShutdownPolicy::
           CLEAN /* blocking shutdown */);
+  auto pending_remote =
+      chromeos::mojo_service_manager::ConnectToMojoServiceManager();
+  if (!pending_remote) {
+    LOG(ERROR) << "Failed to connect to mojo service manager.";
+    return;
+  }
+  service_manager_.Bind(std::move(pending_remote));
+  service_manager_.set_disconnect_with_reason_handler(
+      base::BindOnce([](uint32_t error, const std::string& message) {
+        LOG(ERROR) << "Disconnected from mojo service manager. Error: " << error
+                   << ", message: " << message;
+      }));
+
+  service_manager_->Request(
+      chromeos::mojo_services::kCrosHealthdProbe,
+      kCrosHealthdConnectingTimeout,
+      cros_healthd_probe_service_.BindNewPipeAndPassReceiver().PassPipe());
+  cros_healthd_probe_service_.set_disconnect_with_reason_handler(
+      base::BindOnce([](uint32_t error, const std::string& message) {
+        LOG(ERROR) << "Disconnected from cros_healthd probe service. Error: "
+                   << error << ", message: " << message;
+      }));
 }
 
 TelemetryInfo* const CrosHealthd::GetTelemetryInfo() {
@@ -93,96 +119,38 @@ TelemetryInfo* const CrosHealthd::GetTelemetryInfo() {
 
 void CrosHealthd::ProbeTelemetryInfo(
     const std::unordered_set<TelemetryCategoryEnum>& categories,
-    ProbeTelemetryInfoCallback once_callback) {
+    base::OnceClosure once_callback) {
+  if (!cros_healthd_probe_service_.is_bound()) {
+    LOG(WARNING) << "Skip probing because connection of cros_healthd is not "
+                    "initialized.";
+    std::move(once_callback).Run();
+    return;
+  }
   std::vector<ProbeCategoryEnum> categories_mojo;
   for (const auto& category : categories) {
     auto it = kTelemetryMojoMapping.find(category);
     if (it != kTelemetryMojoMapping.end())
       categories_mojo.push_back(it->second);
   }
-  cros_healthd_service_factory_->GetProbeService(
-      cros_healthd_probe_service_.BindNewPipeAndPassReceiver());
+  auto callback = base::BindOnce(&CrosHealthd::OnProbeTelemetryInfo,
+                                 weak_ptr_factory_.GetWeakPtr(),
+                                 std::move(once_callback));
   cros_healthd_probe_service_->ProbeTelemetryInfo(
       categories_mojo,
-      base::BindOnce(&CrosHealthd::OnProbeTelemetryInfo,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     std::move(once_callback)));
-}
-
-dbus::ObjectProxy* CrosHealthd::GetCrosHealthdObjectProxy() {
-  return DBusConnection::Get()->GetDBus()->GetObjectProxy(
-      diagnostics::kCrosHealthdServiceName,
-      dbus::ObjectPath(diagnostics::kCrosHealthdServicePath));
-}
-
-void CrosHealthd::BootstrapMojo(BootstrapMojoCallback callback) {
-  if (cros_healthd_service_factory_.is_bound()) {
-    LOG(WARNING) << "cros_healthd is already bound, ignoring initialization.";
-    std::move(callback).Run(true);
-    return;
-  }
-
-  // `cros_healthd` service must be available for bootstrapping.
-  GetCrosHealthdObjectProxy()->WaitForServiceToBeAvailable(
-      base::BindOnce(&CrosHealthd::FinalizeBootstrap,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     std::move(callback)));
-}
-
-void CrosHealthd::FinalizeBootstrap(BootstrapMojoCallback callback,
-                                    bool service_available) {
-  if (!service_available) {
-    LOG(ERROR) << "cros_healthd service not available.";
-    std::move(callback).Run(false);
-    return;
-  }
-
-  mojo::PlatformChannel channel;
-  brillo::ErrorPtr error;
-  auto response = brillo::dbus_utils::CallMethodAndBlock(
-      GetCrosHealthdObjectProxy(),
-      diagnostics::kCrosHealthdServiceInterface,
-      diagnostics::kCrosHealthdBootstrapMojoConnectionMethod,
-      &error,
-      brillo::dbus_utils::FileDescriptor(
-          channel.TakeRemoteEndpoint().TakePlatformHandle().TakeFD()),
-      /*is_chrome=*/false);
-  if (!response) {
-    LOG(ERROR) << "Failed to bootstrap mojo connection with cros_healthd.";
-    std::move(callback).Run(false);
-    return;
-  }
-
-  std::string token;
-  dbus::MessageReader reader(response.get());
-  if (!reader.PopString(&token)) {
-    LOG(ERROR) << "Failed to get token from cros_healthd DBus response.";
-    std::move(callback).Run(false);
-    return;
-  }
-
-  mojo::IncomingInvitation invitation =
-      mojo::IncomingInvitation::Accept(channel.TakeLocalEndpoint());
-  auto opt_pending_service_factory =
-      mojo::PendingRemote<ash::cros_healthd::mojom::CrosHealthdServiceFactory>(
-          invitation.ExtractMessagePipe(token), 0u /* version */);
-  if (!opt_pending_service_factory) {
-    LOG(ERROR) << "Failed to create pending service factory for cros_healthd.";
-    std::move(callback).Run(false);
-    return;
-  }
-  cros_healthd_service_factory_.Bind(std::move(opt_pending_service_factory));
-  std::move(callback).Run(true);
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback),
+                                                  nullptr));
 }
 
 void CrosHealthd::OnProbeTelemetryInfo(
-    ProbeTelemetryInfoCallback once_callback,
+    base::OnceClosure once_callback,
     ash::cros_healthd::mojom::TelemetryInfoPtr result) {
   if (!result) {
     LOG(WARNING) << "Failed to parse telemetry information.";
-    std::move(once_callback).Run({});
+    std::move(once_callback).Run();
     return;
   }
+  LOG(INFO) << "Probed telemetry info from cros_healthd.";
+  telemetry_info_ = std::make_unique<TelemetryInfo>();
   if (!ParseSystemResult(&result, telemetry_info_.get()))
     LOG(WARNING) << "Failed to parse system information.";
   if (!ParseMemoryResult(&result, telemetry_info_.get()))
@@ -193,7 +161,7 @@ void CrosHealthd::OnProbeTelemetryInfo(
     LOG(WARNING) << "Failed to parse physical CPU information.";
   if (!ParseBusResult(&result, telemetry_info_.get()))
     LOG(WARNING) << "Failed to parse bus information.";
-  std::move(once_callback).Run(*telemetry_info_);
+  std::move(once_callback).Run();
 }
 
 bool CrosHealthd::ParseSystemResult(

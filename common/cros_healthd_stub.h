@@ -33,11 +33,10 @@ class CrosHealthdStub : public CrosHealthdInterface {
   ~CrosHealthdStub() = default;
 
   // CrosHealthdInterface overrides.
-  void BootstrapMojo(BootstrapMojoCallback callback) override;
   TelemetryInfo* const GetTelemetryInfo() override;
   void ProbeTelemetryInfo(
       const std::unordered_set<TelemetryCategoryEnum>& categories,
-      ProbeTelemetryInfoCallback once_callback) override;
+      base::OnceClosure once_callback) override;
 };
 
 }  // namespace chromeos_update_engine

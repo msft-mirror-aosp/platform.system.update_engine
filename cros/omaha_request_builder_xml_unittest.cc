@@ -25,7 +25,6 @@
 #include <base/strings/stringprintf.h>
 #include <gtest/gtest.h>
 
-#include "update_engine/common/mock_cros_healthd.h"
 #include "update_engine/cros/fake_system_state.h"
 
 using std::pair;
@@ -453,8 +452,6 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlDlcCohortCheck) {
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
   params_.set_hw_details(true);
-  MockCrosHealthd mock_cros_healthd;
-  FakeSystemState::Get()->set_cros_healthd(&mock_cros_healthd);
 
   const string sys_vendor = "fake-sys-vendor",
                product_name = "fake-product-name",
@@ -465,7 +462,9 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
   uint32_t total_memory_kib = 123;
   uint64_t size = 456;
 
-  TelemetryInfo telemetry_info{
+  FakeSystemState::Get()
+      ->fake_cros_healthd()
+      ->telemetry_info() = std::make_unique<TelemetryInfo>(TelemetryInfo{
       .system_info =
           // NOLINTNEXTLINE(whitespace/braces)
       {
@@ -568,10 +567,7 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
                   },
           },
       },
-  };
-
-  EXPECT_CALL(mock_cros_healthd, GetTelemetryInfo())
-      .WillOnce(Return(&telemetry_info));
+  });
 
   OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
   const string request_xml = omaha_request.GetRequest();
@@ -602,6 +598,29 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
                                    "fake-driver-1",
                                    "0001:0002 0003:0004",
                                    "0005:0006 00AA:1111")))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheckMissingCrosHealthd) {
+  params_.set_hw_details(true);
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1,
+            CountSubstringInString(request_xml,
+                                   "    <hw"
+                                   " vendor_name=\"\""
+                                   " product_name=\"\""
+                                   " product_version=\"\""
+                                   " bios_version=\"\""
+                                   " uefi=\"0\""
+                                   " system_memory_bytes=\"0\""
+                                   " root_disk_drive=\"0\""
+                                   " cpu_name=\"\""
+                                   " wireless_drivers=\"\""
+                                   " wireless_ids=\"\""
+                                   " gpu_ids=\"\""
+                                   " />\n"))
       << request_xml;
 }
 

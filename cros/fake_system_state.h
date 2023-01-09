@@ -26,6 +26,7 @@
 #include "metrics/metrics_library_mock.h"
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_clock.h"
+#include "update_engine/common/fake_cros_healthd.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
 #include "update_engine/common/mock_call_wrapper.h"
@@ -194,7 +195,7 @@ class FakeSystemState : public SystemState {
   }
 
   inline void set_cros_healthd(CrosHealthdInterface* cros_healthd) {
-    cros_healthd_ = cros_healthd;
+    cros_healthd_ = (cros_healthd ? cros_healthd : &fake_cros_healthd_);
   }
 
   inline void set_call_wrapper(CallWrapperInterface* call_wrapper) {
@@ -281,6 +282,11 @@ class FakeSystemState : public SystemState {
     return &fake_update_manager_;
   }
 
+  inline FakeCrosHealthd* fake_cros_healthd() {
+    CHECK(cros_healthd_ == &fake_cros_healthd_);
+    return &fake_cros_healthd_;
+  }
+
  private:
   // Don't allow for direct initialization of this class.
   FakeSystemState();
@@ -292,6 +298,7 @@ class FakeSystemState : public SystemState {
   FakeHardware fake_hardware_;
   FakePrefs fake_prefs_;
   FakePrefs fake_powerwash_safe_prefs_;
+  FakeCrosHealthd fake_cros_healthd_;
 
   testing::NiceMock<MockConnectionManager> mock_connection_manager_;
   testing::NiceMock<MockMetricsReporter> mock_metrics_reporter_;
@@ -321,7 +328,7 @@ class FakeSystemState : public SystemState {
   chromeos_update_manager::UpdateManager* update_manager_;
   PowerManagerInterface* power_manager_{&mock_power_manager_};
   DlcServiceInterface* dlcservice_;
-  CrosHealthdInterface* cros_healthd_;
+  CrosHealthdInterface* cros_healthd_{&fake_cros_healthd_};
   CallWrapperInterface* call_wrapper_;
 
   // Other object pointers (not preinitialized).

@@ -23,35 +23,34 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <dbus/object_proxy.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include <mojo/core/embedder/embedder.h>
 #include <mojo/core/embedder/scoped_ipc_support.h>
+#include <mojo/public/cpp/bindings/remote.h>
+#include <mojo_service_manager/lib/mojom/service_manager.mojom.h>
 
-#include "diagnostics/cros_healthd_mojo_adapter/cros_healthd_mojo_adapter.h"
+#include "diagnostics/mojom/public/cros_healthd.mojom.h"
 #include "diagnostics/mojom/public/cros_healthd_probe.mojom.h"
 
 namespace chromeos_update_engine {
 
 class CrosHealthd : public CrosHealthdInterface {
  public:
-  CrosHealthd()
-      : telemetry_info_(std::make_unique<TelemetryInfo>()),
-        weak_ptr_factory_(this) {}
+  CrosHealthd() = default;
   CrosHealthd(const CrosHealthd&) = delete;
   CrosHealthd& operator=(const CrosHealthd&) = delete;
 
   ~CrosHealthd() = default;
 
-  void Init();
+  // Bootstraps the mojo services. This can only be done once in each process.
+  void BootstrapMojo();
 
   // CrosHealthdInterface overrides.
-  void BootstrapMojo(BootstrapMojoCallback callback) override;
   TelemetryInfo* const GetTelemetryInfo() override;
   void ProbeTelemetryInfo(
       const std::unordered_set<TelemetryCategoryEnum>& categories,
-      ProbeTelemetryInfoCallback once_callback) override;
+      base::OnceClosure once_callback) override;
 
  private:
   FRIEND_TEST(CrosHealthdTest, ParseSystemResultCheck);
@@ -68,13 +67,7 @@ class CrosHealthd : public CrosHealthdInterface {
   FRIEND_TEST(CrosHealthdTest, ParseBusResultCheckThunderboltBus);
   FRIEND_TEST(CrosHealthdTest, ParseBusResultCheckAllBus);
 
-  // Get `cros_healthd` DBus object proxy.
-  dbus::ObjectProxy* GetCrosHealthdObjectProxy();
-
-  void FinalizeBootstrap(BootstrapMojoCallback callback,
-                         bool service_available);
-
-  void OnProbeTelemetryInfo(ProbeTelemetryInfoCallback once_callback,
+  void OnProbeTelemetryInfo(base::OnceClosure once_callback,
                             ash::cros_healthd::mojom::TelemetryInfoPtr result);
 
   // Parsing helpers for `OnProbTelemetryInfo()` .
@@ -94,13 +87,13 @@ class CrosHealthd : public CrosHealthdInterface {
 
   std::unique_ptr<mojo::core::ScopedIPCSupport> ipc_support_;
 
-  mojo::Remote<ash::cros_healthd::mojom::CrosHealthdServiceFactory>
-      cros_healthd_service_factory_;
+  mojo::Remote<chromeos::mojo_service_manager::mojom::ServiceManager>
+      service_manager_;
 
   mojo::Remote<ash::cros_healthd::mojom::CrosHealthdProbeService>
       cros_healthd_probe_service_;
 
-  base::WeakPtrFactory<CrosHealthd> weak_ptr_factory_;
+  base::WeakPtrFactory<CrosHealthd> weak_ptr_factory_{this};
 };
 
 }  // namespace chromeos_update_engine

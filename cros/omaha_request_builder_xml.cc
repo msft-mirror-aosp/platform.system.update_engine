@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 
+#include <memory>
 #include <numeric>
 #include <string>
 
@@ -511,7 +512,15 @@ string OmahaRequestBuilderXml::GetHw() const {
     return "";
 
   auto* telemetry_info = SystemState::Get()->cros_healthd()->GetTelemetryInfo();
-  string hw_xml = base::StringPrintf(
+  std::unique_ptr<TelemetryInfo> default_telemetry_info;
+  if (!telemetry_info) {
+    LOG(WARNING) << "No telemetry data was reported from cros_healthd. Use "
+                    "empty value to build hw details.";
+    default_telemetry_info = std::make_unique<TelemetryInfo>();
+    telemetry_info = default_telemetry_info.get();
+  }
+
+  std::string hw_xml = base::StringPrintf(
       "    <hw"
       " vendor_name=\"%s\""
       " product_name=\"%s\""
