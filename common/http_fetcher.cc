@@ -16,7 +16,7 @@
 
 #include "update_engine/common/http_fetcher.h"
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <base/logging.h>
 
 using base::Closure;

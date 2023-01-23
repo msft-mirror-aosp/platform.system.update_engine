@@ -25,8 +25,8 @@
 #include <iterator>
 #include <string>
 
-#include <base/bind.h>
 #include <base/format_macros.h>
+#include <base/functional/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
 #if BASE_VER < 1050813

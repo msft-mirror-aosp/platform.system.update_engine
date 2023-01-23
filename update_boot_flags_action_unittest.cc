@@ -19,7 +19,7 @@
 #include <memory>
 #include <utility>
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/common/fake_boot_control.h"

@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <base/callback.h>
+#include <base/functional/callback.h>
 #include <base/logging.h>
 #include <brillo/message_loops/message_loop.h>
 

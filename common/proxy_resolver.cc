@@ -16,7 +16,7 @@
 
 #include "update_engine/common/proxy_resolver.h"
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <base/location.h>
 
 using brillo::MessageLoop;

@@ -24,8 +24,8 @@
 #include <string>
 #include <utility>
 
-#include <base/bind.h>
 #include <base/files/file_util.h>
+#include <base/functional/bind.h>
 #if BASE_VER < 780000  // Android
 #include <base/message_loop/message_loop.h>
 #endif  // BASE_VER < 780000

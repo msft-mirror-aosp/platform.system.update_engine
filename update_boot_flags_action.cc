@@ -16,7 +16,7 @@
 
 #include "update_engine/update_boot_flags_action.h"
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <base/logging.h>
 
 #include "update_engine/common/boot_control.h"

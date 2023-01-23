@@ -16,8 +16,8 @@
 
 #include "update_engine/update_manager/real_system_provider.h"
 
-#include <base/bind.h>
-#include <base/callback.h>
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/logging.h>
 #include <base/time/time.h>
 #include <kiosk-app/dbus-proxies.h>

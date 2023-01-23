@@ -42,10 +42,10 @@
 #include <utility>
 #include <vector>
 
-#include <base/bind.h>
 #include <base/files/file_enumerator.h>
 #include <base/files/file_path.h>
 #include <base/format_macros.h>
+#include <base/functional/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>

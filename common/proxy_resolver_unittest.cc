@@ -19,10 +19,9 @@
 #include <deque>
 #include <string>
 
-#include <gtest/gtest.h>
-
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <brillo/message_loops/fake_message_loop.h>
+#include <gtest/gtest.h>
 
 using std::deque;
 using std::string;

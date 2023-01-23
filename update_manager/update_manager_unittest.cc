@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <base/test/simple_test_clock.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/fake_message_loop.h>

@@ -19,7 +19,7 @@
 #include <memory>
 #include <utility>
 
-#include <base/callback.h>
+#include <base/functional/callback.h>
 #include <base/memory/weak_ptr.h>
 
 #include "update_engine/update_manager/evaluation_context.h"

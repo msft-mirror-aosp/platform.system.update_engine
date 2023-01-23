@@ -19,7 +19,7 @@
 #include <memory>
 #include <string>
 
-#include <base/bind.h>
+#include <base/functional/bind.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gtest/gtest.h>

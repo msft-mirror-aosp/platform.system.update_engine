@@ -20,7 +20,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include <base/callback.h>
+#include <base/functional/callback.h>
 
 #include "update_engine/common/telemetry_info.h"
 

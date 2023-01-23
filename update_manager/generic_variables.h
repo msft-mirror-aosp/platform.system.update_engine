@@ -23,7 +23,7 @@
 
 #include <string>
 
-#include <base/callback.h>
+#include <base/functional/callback.h>
 
 #include "update_engine/update_manager/variable.h"
 

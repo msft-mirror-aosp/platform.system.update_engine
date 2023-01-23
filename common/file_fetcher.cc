@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <string>
 
-#include <base/bind.h>
 #include <base/format_macros.h>
+#include <base/functional/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/strings/string_util.h>

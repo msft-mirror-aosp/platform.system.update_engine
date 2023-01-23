@@ -27,9 +27,9 @@
 #include <string>
 #include <vector>
 
-#include <base/bind.h>
-#include <base/callback.h>
 #include <base/files/file_util.h>
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/logging.h>
 #include <base/test/simple_test_clock.h>
 #include <brillo/message_loops/fake_message_loop.h>
