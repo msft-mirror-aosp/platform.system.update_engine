@@ -26,6 +26,7 @@
 #include <base/check.h>
 #include <base/files/scoped_file.h>
 #include <base/logging.h>
+#include <base/task/single_thread_task_runner.h>
 #include <base/time/time.h>
 #include <chromeos/mojo/service_constants.h>
 #include <mojo/public/cpp/bindings/callback_helpers.h>
@@ -86,7 +87,8 @@ void CrosHealthd::BootstrapMojo() {
   // mojo services, we must reuse these mojo initiailizations.
   mojo::core::Init();
   ipc_support_ = std::make_unique<mojo::core::ScopedIPCSupport>(
-      base::ThreadTaskRunnerHandle::Get() /* io_thread_task_runner */,
+      base::SingleThreadTaskRunner::
+          GetCurrentDefault() /* io_thread_task_runner */,
       mojo::core::ScopedIPCSupport::ShutdownPolicy::
           CLEAN /* blocking shutdown */);
   auto pending_remote =

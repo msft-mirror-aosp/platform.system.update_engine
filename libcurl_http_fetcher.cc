@@ -29,13 +29,17 @@
 #include <base/format_macros.h>
 #include <base/location.h>
 #include <base/logging.h>
+#if BASE_VER < 1050813
+#include <base/threading/thread_task_runner_handle.h>
+#else
+#include <base/task/single_thread_task_runner.h>
+#endif
 #if BASE_VER >= 822064
 #include <base/notreached.h>
 #endif
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
-#include <base/threading/thread_task_runner_handle.h>
 #include <base/time/time.h>
 
 #include "update_engine/certificate_checker.h"
@@ -446,7 +450,11 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     // When there's no |base::SingleThreadTaskRunner| on current thread, it's
     // not possible to watch file descriptors. Just poll it later. This usually
     // happens if |brillo::FakeMessageLoop| is used.
+#if BASE_VER < 1050813
     if (!base::ThreadTaskRunnerHandle::IsSet()) {
+#else
+    if (!base::SingleThreadTaskRunner::HasCurrentDefault()) {
+#endif
       MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
           base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
