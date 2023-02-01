@@ -123,7 +123,7 @@ void SignPayload(const string& in_file,
   vector<brillo::Blob> payload_signatures, metadata_signatures;
   SignatureFileFlagToBlobs(payload_signature_file, &payload_signatures);
   SignatureFileFlagToBlobs(metadata_signature_file, &metadata_signatures);
-  uint64_t final_metadata_size;
+  uint64_t final_metadata_size{};
   CHECK(PayloadSigner::AddSignatureToPayload(in_file,
                                              signature_sizes,
                                              payload_signatures,
@@ -394,6 +394,11 @@ int Main(int argc, char** argv) {
                "The maximum timestamp of the OS allowed to apply this "
                "payload.");
   DEFINE_string(
+      security_patch_level,
+      "",
+      "The security patch level of this OTA. Devices with a newer SPL "
+      "will not be allowed to apply this payload");
+  DEFINE_string(
       partition_timestamps,
       "",
       "The per-partition maximum timestamps which the OS allowed to apply this "
@@ -478,7 +483,7 @@ int Main(int argc, char** argv) {
         << "Private key is not provided when calculating the maximum signature "
            "size.";
 
-    size_t maximum_signature_size;
+    size_t maximum_signature_size{};
     if (!PayloadSigner::GetMaximumSignatureSize(FLAGS_private_key,
                                                 &maximum_signature_size)) {
       LOG(ERROR) << "Failed to get the maximum signature size of private key: "
@@ -685,7 +690,7 @@ int Main(int argc, char** argv) {
     // image.
     if (payload_config.is_delta) {
       brillo::KeyValueStore store;
-      uint32_t minor_version;
+      uint32_t minor_version{};
       bool minor_version_found = false;
       for (const PartitionConfig& part : payload_config.source.partitions) {
         if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
@@ -719,6 +724,9 @@ int Main(int argc, char** argv) {
   }
 
   payload_config.max_timestamp = FLAGS_max_timestamp;
+
+  payload_config.security_patch_level = FLAGS_security_patch_level;
+
   if (!FLAGS_partition_timestamps.empty()) {
     CHECK(ParsePerPartitionTimestamps(FLAGS_partition_timestamps,
                                       &payload_config));
@@ -726,8 +734,20 @@ int Main(int argc, char** argv) {
 
   if (payload_config.is_delta &&
       payload_config.version.minor >= kVerityMinorPayloadVersion &&
-      !FLAGS_disable_verity_computation)
+      !FLAGS_disable_verity_computation) {
     CHECK(payload_config.target.LoadVerityConfig());
+    for (size_t i = 0; i < payload_config.target.partitions.size(); ++i) {
+      if (payload_config.source.partitions[i].fs_interface != nullptr) {
+        continue;
+      }
+      if (!payload_config.target.partitions[i].verity.IsEmpty()) {
+        LOG(INFO) << "Partition " << payload_config.target.partitions[i].name
+                  << " is installed in full OTA, disaling verity for this "
+                     "specific partition.";
+        payload_config.target.partitions[i].verity.Clear();
+      }
+    }
+  }
 
   LOG(INFO) << "Generating " << (payload_config.is_delta ? "delta" : "full")
             << " update";
@@ -738,7 +758,7 @@ int Main(int argc, char** argv) {
     return 1;
   }
 
-  uint64_t metadata_size;
+  uint64_t metadata_size{};
   if (!GenerateUpdatePayloadFile(
           payload_config, FLAGS_out_file, FLAGS_private_key, &metadata_size)) {
     return 1;
