@@ -55,7 +55,7 @@ PayloadProperties::PayloadProperties(const string& payload_path)
 bool PayloadProperties::GetPropertiesAsJson(string* json_str) {
   TEST_AND_RETURN_FALSE(LoadFromPayload());
 
-  base::Value properties(base::Value::Type::DICTIONARY);
+  base::Value properties(base::Value::Type::DICT);
   properties.SetIntKey(kPayloadPropertyJsonVersion, version_);
   properties.SetIntKey(kPayloadPropertyJsonMetadataSize, metadata_size_);
   properties.SetStringKey(kPayloadPropertyJsonMetadataSignature,
