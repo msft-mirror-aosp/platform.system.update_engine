@@ -50,6 +50,9 @@ extern const char kCACertificatesPath[];
 // The stateful directory used by update_engine.
 extern const char kNonVolatileDirectory[];
 
+// Recovery key version file that exists under the non-volatile directory.
+extern const char kRecoveryKeyVersionFileName[];
+
 // Options passed to the filesystem when mounting the new partition during
 // postinstall.
 extern const char kPostinstallMountOptions[];

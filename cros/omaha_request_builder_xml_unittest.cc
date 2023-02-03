@@ -187,6 +187,23 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
   EXPECT_EQ(gen_session_id, session_id);
 }
 
+TEST_F(OmahaRequestBuilderXmlTest, GetRecoveryKeyVersionMissing) {
+  FakeSystemState::Get()->fake_hardware()->SetRecoveryKeyVersion("");
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "recoverykeyversion=\"\""))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRecoveryKeyVersion) {
+  FakeSystemState::Get()->fake_hardware()->SetRecoveryKeyVersion("123");
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  const string recovery_key_version =
+      FindAttributeKeyValueInXml(request_xml, "recoverykeyversion", 3);
+  EXPECT_EQ("123", recovery_key_version) << request_xml;
+}
+
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlPlatformUpdateTest) {
   OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
   const string request_xml = omaha_request.GetRequest();

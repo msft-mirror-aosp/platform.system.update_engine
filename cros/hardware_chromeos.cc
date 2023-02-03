@@ -37,6 +37,7 @@ extern "C" {
 #include "update_engine/common/hwid_override.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
+#include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/dbus_connection.h"
 #if USE_CFM || USE_REPORT_REQUISITION
@@ -109,6 +110,9 @@ std::unique_ptr<HardwareInterface> CreateHardware() {
 }
 
 }  // namespace hardware
+
+HardwareChromeOS::HardwareChromeOS()
+    : root_("/"), non_volatile_path_(constants::kNonVolatileDirectory) {}
 
 void HardwareChromeOS::Init() {
   LoadConfig("" /* root_prefix */, IsNormalBootMode());
@@ -307,7 +311,48 @@ bool HardwareChromeOS::CancelPowerwash() {
 }
 
 bool HardwareChromeOS::GetNonVolatileDirectory(base::FilePath* path) const {
-  *path = base::FilePath(constants::kNonVolatileDirectory);
+  *path = non_volatile_path_;
+  return true;
+}
+
+bool HardwareChromeOS::GetRecoveryKeyVersion(std::string* version) {
+  // Returned the cached value to read once per boot if read successfully.
+  if (!recovery_key_version_.empty()) {
+    *version = recovery_key_version_;
+    return true;
+  }
+
+  // Clear for safety.
+  version->clear();
+
+  base::FilePath non_volatile_path;
+  if (!GetNonVolatileDirectory(&non_volatile_path)) {
+    LOG(ERROR) << "Failed to get non-volatile path.";
+    return false;
+  }
+  auto recovery_key_version_path =
+      non_volatile_path.Append(constants::kRecoveryKeyVersionFileName);
+
+  // Use temporary version string to return empty string on read failure.
+  string tmp_version;
+  if (!base::ReadFileToString(recovery_key_version_path, &tmp_version)) {
+    LOG(ERROR) << "Failed to read recovery key version file at: "
+               << recovery_key_version_path.value();
+    return false;
+  }
+  base::TrimWhitespaceASCII(tmp_version, base::TRIM_ALL, &tmp_version);
+
+  // Check that the version is a valid string of integer.
+  int x;
+  if (!base::StringToInt(tmp_version, &x)) {
+    LOG(ERROR) << "Recovery key version file does not hold a valid version: "
+               << tmp_version;
+    return false;
+  }
+
+  // Only perfect conversions above return true, so safe to return the string
+  // itself without using `NumberToString(...)` or alike.
+  *version = tmp_version;
   return true;
 }
 

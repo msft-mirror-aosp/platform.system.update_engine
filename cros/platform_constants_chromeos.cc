@@ -31,6 +31,7 @@ const char kUpdateCertificatesPath[] = "";
 const char kCACertificatesPath[] = "/usr/share/chromeos-ca-certificates";
 // This directory is wiped during powerwash.
 const char kNonVolatileDirectory[] = "/var/lib/update_engine";
+const char kRecoveryKeyVersionFileName[] = "recovery_key_version";
 const char kPostinstallMountOptions[] = "";
 
 }  // namespace constants

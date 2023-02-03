@@ -26,6 +26,7 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/fake_hardware.h"
+#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
@@ -191,6 +192,68 @@ TEST_F(HardwareChromeOSTest, RunningInMiniOs) {
 
 TEST_F(HardwareChromeOSTest, NotRunningInMiniOs) {
   EXPECT_FALSE(hardware_.IsRunningFromMiniOs());
+}
+
+TEST_F(HardwareChromeOSTest, RecoveryKeyVersionMissingFile) {
+  base::FilePath test_path = root_dir_.GetPath();
+  hardware_.SetNonVolatileDirectoryForTest(test_path);
+
+  base::FilePath non_volatile_directory;
+  ASSERT_TRUE(hardware_.GetNonVolatileDirectory(&non_volatile_directory));
+  ASSERT_TRUE(base::CreateDirectory(non_volatile_directory));
+
+  std::string version;
+  EXPECT_FALSE(hardware_.GetRecoveryKeyVersion(&version));
+}
+
+TEST_F(HardwareChromeOSTest, RecoveryKeyVersionBadKey) {
+  base::FilePath test_path = root_dir_.GetPath();
+  hardware_.SetNonVolatileDirectoryForTest(test_path);
+
+  base::FilePath non_volatile_directory;
+  ASSERT_TRUE(hardware_.GetNonVolatileDirectory(&non_volatile_directory));
+  ASSERT_TRUE(base::CreateDirectory(non_volatile_directory));
+
+  EXPECT_TRUE(base::WriteFile(
+      non_volatile_directory.Append(constants::kRecoveryKeyVersionFileName),
+      "foobar"));
+
+  std::string version;
+  EXPECT_FALSE(hardware_.GetRecoveryKeyVersion(&version));
+}
+
+TEST_F(HardwareChromeOSTest, RecoveryKeyVersion) {
+  base::FilePath test_path = root_dir_.GetPath();
+  hardware_.SetNonVolatileDirectoryForTest(test_path);
+
+  base::FilePath non_volatile_directory;
+  ASSERT_TRUE(hardware_.GetNonVolatileDirectory(&non_volatile_directory));
+  ASSERT_TRUE(base::CreateDirectory(non_volatile_directory));
+
+  EXPECT_TRUE(base::WriteFile(
+      non_volatile_directory.Append(constants::kRecoveryKeyVersionFileName),
+      "123"));
+
+  std::string version;
+  EXPECT_TRUE(hardware_.GetRecoveryKeyVersion(&version));
+  EXPECT_EQ(std::string("123"), version);
+}
+
+TEST_F(HardwareChromeOSTest, RecoveryKeyVersionTrimWhitespaces) {
+  base::FilePath test_path = root_dir_.GetPath();
+  hardware_.SetNonVolatileDirectoryForTest(test_path);
+
+  base::FilePath non_volatile_directory;
+  ASSERT_TRUE(hardware_.GetNonVolatileDirectory(&non_volatile_directory));
+  ASSERT_TRUE(base::CreateDirectory(non_volatile_directory));
+
+  EXPECT_TRUE(base::WriteFile(
+      non_volatile_directory.Append(constants::kRecoveryKeyVersionFileName),
+      "\n888\n"));
+
+  std::string version;
+  EXPECT_TRUE(hardware_.GetRecoveryKeyVersion(&version));
+  EXPECT_EQ(std::string("888"), version);
 }
 
 }  // namespace chromeos_update_engine

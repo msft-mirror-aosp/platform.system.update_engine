@@ -145,6 +145,14 @@ class FakeHardware : public HardwareInterface {
     return false;
   }
 
+  bool GetRecoveryKeyVersion(std::string* version) override {
+    if (recovery_key_version_.empty()) {
+      return false;
+    }
+    *version = recovery_key_version_;
+    return true;
+  }
+
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override {
     return false;
   }
@@ -230,6 +238,10 @@ class FakeHardware : public HardwareInterface {
 
   void SetWarmReset(bool warm_reset) override { warm_reset_ = warm_reset; }
 
+  void SetRecoveryKeyVersion(const std::string& version) {
+    recovery_key_version_ = version;
+  }
+
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
@@ -273,6 +285,7 @@ class FakeHardware : public HardwareInterface {
   int64_t build_timestamp_{0};
   bool first_active_omaha_ping_sent_{false};
   bool warm_reset_{false};
+  std::string recovery_key_version_;
   mutable std::map<std::string, std::string> partition_timestamps_;
 };
 

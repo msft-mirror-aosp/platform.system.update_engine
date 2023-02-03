@@ -33,7 +33,7 @@ namespace chromeos_update_engine {
 // process.
 class HardwareChromeOS final : public HardwareInterface {
  public:
-  HardwareChromeOS() : root_("/") {}
+  HardwareChromeOS();
   HardwareChromeOS(const HardwareChromeOS&) = delete;
   HardwareChromeOS& operator=(const HardwareChromeOS&) = delete;
 
@@ -62,6 +62,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool SchedulePowerwash(bool save_rollback_data) override;
   bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
+  bool GetRecoveryKeyVersion(std::string* version) override;
   bool GetPowerwashSafeDirectory(base::FilePath* path) const override;
   int64_t GetBuildTimestamp() const override;
   bool AllowDowngrade() const override { return false; }
@@ -77,6 +78,9 @@ class HardwareChromeOS final : public HardwareInterface {
       const std::string& new_version) const override;
 
   void SetRootForTest(base::FilePath test_root) { root_ = test_root; }
+  void SetNonVolatileDirectoryForTest(const base::FilePath& path) {
+    non_volatile_path_ = path;
+  }
 
  private:
   friend class HardwareChromeOSTest;
@@ -88,7 +92,10 @@ class HardwareChromeOS final : public HardwareInterface {
 
   bool is_oobe_enabled_;
 
+  std::string recovery_key_version_;
+
   base::FilePath root_;
+  base::FilePath non_volatile_path_;
 
   std::unique_ptr<org::chromium::debugdProxyInterface> debugd_proxy_;
 };

@@ -125,6 +125,10 @@ class HardwareInterface {
   // directory available, returns false.
   virtual bool GetNonVolatileDirectory(base::FilePath* path) const = 0;
 
+  // Returns the recovery key version that the device is using.
+  // If key is not found or invalid, returns empty string.
+  virtual bool GetRecoveryKeyVersion(std::string* version) = 0;
+
   // Store in |path| the path to a non-volatile directory persisted across
   // powerwash cycles. In case of an error, such as no directory available,
   // returns false.
