@@ -37,9 +37,10 @@
 #include <brillo/secure_blob.h>
 #include <brillo/streams/file_stream.h>
 
-#include "common/error_code.h"
+#include "update_engine/common/error_code.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/file_descriptor.h"
+#include "update_engine/payload_consumer/install_plan.h"
 
 using brillo::data_encoding::Base64Encode;
 using std::string;
@@ -79,7 +80,9 @@ namespace chromeos_update_engine {
 
 namespace {
 const off_t kReadFileBufferSize = 128 * 1024;
-constexpr float kVerityProgressPercent = 0.6;
+constexpr float kVerityProgressPercent = 0.3;
+constexpr float kEncodeFECPercent = 0.3;
+
 }  // namespace
 
 void FilesystemVerifierAction::PerformAction() {
@@ -112,6 +115,14 @@ void FilesystemVerifierAction::PerformAction() {
                    std::plus<size_t>());
 
   install_plan_.Dump();
+  // If we are not writing verity, just map all partitions once at the
+  // beginning.
+  // No need to re-map for each partition, because we are not writing any new
+  // COW data.
+  if (dynamic_control_->UpdateUsesSnapshotCompression() &&
+      !install_plan_.write_verity) {
+    dynamic_control_->MapAllPartitions();
+  }
   StartPartitionHashing();
   abort_action_completer.set_should_complete(false);
 }
@@ -178,8 +189,10 @@ bool FilesystemVerifierAction::InitializeFdVABC(bool should_write_verity) {
     // writes won't be visible to previously opened snapuserd daemon. To ensure
     // that we will see the most up to date data from partitions, call Unmap()
     // then Map() to re-spin daemon.
-    dynamic_control_->UnmapAllPartitions();
-    dynamic_control_->MapAllPartitions();
+    if (install_plan_.write_verity) {
+      dynamic_control_->UnmapAllPartitions();
+      dynamic_control_->MapAllPartitions();
+    }
     return InitializeFd(partition.readonly_target_path);
   }
   partition_fd_ =
@@ -228,6 +241,8 @@ void FilesystemVerifierAction::WriteVerityData(FileDescriptor* fd,
     LOG(ERROR) << "Failed to write verity data";
     Cleanup(ErrorCode::kVerityCalculationError);
   }
+  UpdatePartitionProgress(kVerityProgressPercent +
+                          verity_writer_->GetProgress() * kEncodeFECPercent);
   CHECK(pending_task_id_.PostTask(
       FROM_HERE,
       base::BindOnce(&FilesystemVerifierAction::WriteVerityData,
@@ -322,8 +337,9 @@ void FilesystemVerifierAction::HashPartition(const off64_t start_offset,
   // verity writes and partition hashing. Otherwise, the entire progress bar is
   // dedicated to partition hashing for smooth progress.
   if (ShouldWriteVerity()) {
-    UpdatePartitionProgress(progress * (1 - kVerityProgressPercent) +
-                            kVerityProgressPercent);
+    UpdatePartitionProgress(
+        progress * (1 - (kVerityProgressPercent + kEncodeFECPercent)) +
+        kVerityProgressPercent + kEncodeFECPercent);
   } else {
     UpdatePartitionProgress(progress);
   }

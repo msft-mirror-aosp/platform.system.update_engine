@@ -474,7 +474,7 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
       manifest_.mutable_dynamic_partition_metadata()
           ->set_vabc_compression_param("none");
       for (auto& partition : *manifest_.mutable_partitions()) {
-        int new_cow_size = partition.new_partition_info().size();
+        auto new_cow_size = partition.new_partition_info().size();
         for (const auto& operation : partition.merge_operations()) {
           if (operation.type() == CowMergeOperation::COW_COPY) {
             new_cow_size -=
@@ -486,6 +486,18 @@ bool DeltaPerformer::Write(const void* bytes, size_t count, ErrorCode* error) {
         // and no way for user to retry OTA
         partition.set_estimate_cow_size(new_cow_size + (1024 * 1024 * 8));
       }
+    }
+    if (install_plan_->enable_threading) {
+      manifest_.mutable_dynamic_partition_metadata()
+          ->mutable_vabc_feature_set()
+          ->set_threaded(true);
+      LOG(INFO) << "Attempting to enable multi-threaded compression for VABC";
+    }
+    if (install_plan_->batched_writes) {
+      manifest_.mutable_dynamic_partition_metadata()
+          ->mutable_vabc_feature_set()
+          ->set_batch_writes(true);
+      LOG(INFO) << "Attempting to enable batched writes for VABC";
     }
 
     // This populates |partitions_| and the |install_plan.partitions| with the
@@ -735,6 +747,13 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
   if (!install_plan_->ParsePartitions(
           partitions_, boot_control_, block_size_, error)) {
     return false;
+  }
+  auto&& has_verity = [](const auto& part) {
+    return part.fec_extent().num_blocks() > 0 ||
+           part.hash_tree_extent().num_blocks() > 0;
+  };
+  if (!std::any_of(partitions_.begin(), partitions_.end(), has_verity)) {
+    install_plan_->write_verity = false;
   }
 
   LogPartitionInfo(partitions_);
@@ -1313,10 +1332,7 @@ bool DeltaPerformer::CanResumeUpdate(PrefsInterface* prefs,
   return true;
 }
 
-bool DeltaPerformer::ResetUpdateProgress(
-    PrefsInterface* prefs,
-    bool quick,
-    bool skip_dynamic_partititon_metadata_updated) {
+bool DeltaPerformer::ResetUpdateProgress(PrefsInterface* prefs, bool quick) {
   TEST_AND_RETURN_FALSE(prefs->SetInt64(kPrefsUpdateStateNextOperation,
                                         kUpdateStateOperationInvalid));
   if (!quick) {
@@ -1331,10 +1347,8 @@ bool DeltaPerformer::ResetUpdateProgress(
     prefs->Delete(kPrefsPostInstallSucceeded);
     prefs->Delete(kPrefsVerityWritten);
 
-    if (!skip_dynamic_partititon_metadata_updated) {
-      LOG(INFO) << "Resetting recorded hash for prepared partitions.";
-      prefs->Delete(kPrefsDynamicPartitionMetadataUpdated);
-    }
+    LOG(INFO) << "Resetting recorded hash for prepared partitions.";
+    prefs->Delete(kPrefsDynamicPartitionMetadataUpdated);
   }
   return true;
 }

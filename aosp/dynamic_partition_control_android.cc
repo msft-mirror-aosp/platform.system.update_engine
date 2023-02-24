@@ -1314,8 +1314,8 @@ bool DynamicPartitionControlAndroid::ResetUpdate(PrefsInterface* prefs) {
   // ResetUpdateProgress may pass but CancelUpdate fails.
   // This is expected. A scheduled CleanupPreviousUpdateAction should free
   // space when it is done.
-  TEST_AND_RETURN_FALSE(DeltaPerformer::ResetUpdateProgress(
-      prefs, false /* quick */, false /* skip dynamic partitions metadata */));
+  TEST_AND_RETURN_FALSE(
+      DeltaPerformer::ResetUpdateProgress(prefs, false /* quick */));
 
   if (ExpectMetadataMounted()) {
     TEST_AND_RETURN_FALSE(snapshot_->CancelUpdate());
@@ -1428,7 +1428,7 @@ std::unique_ptr<android::snapshot::ISnapshotWriter>
 DynamicPartitionControlAndroid::OpenCowWriter(
     const std::string& partition_name,
     const std::optional<std::string>& source_path,
-    bool is_append) {
+    bool) {
   auto suffix = SlotSuffixForSlotNumber(target_slot_);
 
   auto super_device = GetSuperDevice();
