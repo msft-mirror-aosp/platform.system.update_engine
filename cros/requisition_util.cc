@@ -49,8 +49,9 @@ string ReadDeviceRequisition(const base::Value* local_state) {
   // OR
   // 2. Requisition value mistakenly set to "none".
   if ((requisition.empty() || requisition == kNoRequisition || !vpd_retval) &&
-      local_state) {
-    auto* path = local_state->FindPath({"enrollment", "device_requisition"});
+      (local_state && local_state->is_dict())) {
+    auto* path = local_state->GetDict().FindByDottedPath(
+        "enrollment.device_requisition");
     if (!path || !path->is_string()) {
       return "";
     }
