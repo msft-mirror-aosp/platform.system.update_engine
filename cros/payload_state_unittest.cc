@@ -1226,6 +1226,23 @@ TEST_F(PayloadStateTest, AbnormalTerminationAttemptMetricsClearedOnSucceess) {
   EXPECT_FALSE(fake_prefs->Exists(kPrefsAttemptInProgress));
 }
 
+TEST_F(PayloadStateTest, CandidateUrlsMissingErrorReported) {
+  PayloadState payload_state;
+  ErrorCode error = ErrorCode::kNonCriticalUpdateInOOBE;
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
+              ReportInternalErrorCode(error));
+  payload_state.UpdateFailed(error);
+}
+
+TEST_F(PayloadStateTest, CandidateUrlsMissingErrorNotReportedForSuccessCode) {
+  PayloadState payload_state;
+  ErrorCode error = ErrorCode::kSuccess;
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
+              ReportInternalErrorCode(error))
+      .Times(0);
+  payload_state.UpdateFailed(error);
+}
+
 TEST_F(PayloadStateTest, CandidateUrlsComputedCorrectly) {
   OmahaResponse response;
   PayloadState payload_state;

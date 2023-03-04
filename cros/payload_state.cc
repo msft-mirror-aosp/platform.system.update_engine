@@ -260,14 +260,28 @@ void PayloadState::UpdateSucceeded() {
 
 void PayloadState::UpdateFailed(ErrorCode error) {
   ErrorCode base_error = utils::GetBaseErrorCode(error);
+  const std::string base_error_str = utils::ErrorCodeToString(base_error);
+
   LOG(INFO) << "Updating payload state for error code: " << base_error << " ("
-            << utils::ErrorCodeToString(base_error) << ")";
+            << base_error_str << ")";
 
   if (candidate_urls_.size() == 0) {
     // This means we got this error even before we got a valid Omaha response
     // or don't have any valid candidates in the Omaha response.
     // So we should not advance the url_index_ in such cases.
     LOG(INFO) << "Ignoring failures until we get a valid Omaha response.";
+
+    // Still report out the error code. (Not doing so here causes gaps in the
+    // metrics reporting as we will omit certain internal error codes from being
+    // tracked).
+    // |error| should never be |ErrorCode::kSuccess| but double check.
+    if (error != ErrorCode::kSuccess) {
+      LOG(INFO) << "Reporting internal error code: " << base_error << " ("
+                << base_error_str << ")";
+      SystemState::Get()->metrics_reporter()->ReportInternalErrorCode(
+          base_error);
+    }
+
     return;
   }
 
