@@ -39,10 +39,10 @@ bool RealShillProvider::Init() {
 
   // Subscribe to the manager's PropertyChanged signal.
   manager_proxy->RegisterPropertyChangedSignalHandler(
-      base::Bind(&RealShillProvider::OnManagerPropertyChanged,
-                 base::Unretained(this)),
-      base::Bind(&RealShillProvider::OnSignalConnected,
-                 base::Unretained(this)));
+      base::BindRepeating(&RealShillProvider::OnManagerPropertyChanged,
+                          base::Unretained(this)),
+      base::BindOnce(&RealShillProvider::OnSignalConnected,
+                     base::Unretained(this)));
 
   // Attempt to read initial connection status. Even if this fails because shill
   // is not responding (e.g. it is down) we'll be notified via "PropertyChanged"

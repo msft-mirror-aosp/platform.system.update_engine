@@ -505,31 +505,31 @@ TEST_F(P2PManagerTest, LookupURL) {
       "fooX",
       42,
       TimeDelta(),
-      base::Bind(ExpectUrl, "http://1.2.3.4/fooX.cros_au_42"));
+      base::BindOnce(ExpectUrl, "http://1.2.3.4/fooX.cros_au_42"));
   loop_.Run();
 
   // Emulate p2p-client returning invalid URL.
   test_conf_->SetP2PClientCommand({"echo", "not_a_valid_url"});
   manager_->LookupUrlForFile(
-      "foobar", 42, TimeDelta(), base::Bind(ExpectUrl, ""));
+      "foobar", 42, TimeDelta(), base::BindOnce(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client conveying failure.
   test_conf_->SetP2PClientCommand({"false"});
   manager_->LookupUrlForFile(
-      "foobar", 42, TimeDelta(), base::Bind(ExpectUrl, ""));
+      "foobar", 42, TimeDelta(), base::BindOnce(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client not existing.
   test_conf_->SetP2PClientCommand({"/path/to/non/existent/helper/program"});
   manager_->LookupUrlForFile(
-      "foobar", 42, TimeDelta(), base::Bind(ExpectUrl, ""));
+      "foobar", 42, TimeDelta(), base::BindOnce(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client crashing.
   test_conf_->SetP2PClientCommand({"sh", "-c", "kill -SEGV $$"});
   manager_->LookupUrlForFile(
-      "foobar", 42, TimeDelta(), base::Bind(ExpectUrl, ""));
+      "foobar", 42, TimeDelta(), base::BindOnce(ExpectUrl, ""));
   loop_.Run();
 
   // Emulate p2p-client exceeding its timeout.
@@ -547,7 +547,7 @@ TEST_F(P2PManagerTest, LookupURL) {
        "echo http://1.2.3.4/; "
        "wait"});
   manager_->LookupUrlForFile(
-      "foobar", 42, base::Milliseconds(500), base::Bind(ExpectUrl, ""));
+      "foobar", 42, base::Milliseconds(500), base::BindOnce(ExpectUrl, ""));
   loop_.Run();
 }
 

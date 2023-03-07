@@ -59,7 +59,7 @@ class P2PManager {
 
   // The type for the callback used in LookupUrlForFile().
   // If the lookup failed, |url| is empty.
-  typedef base::Callback<void(const std::string& url)> LookupCallback;
+  typedef base::OnceCallback<void(const std::string& url)> LookupCallback;
 
   // Use the device policy specified by |device_policy|. If this is
   // null, then no device policy is used.

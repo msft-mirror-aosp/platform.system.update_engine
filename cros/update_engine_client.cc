@@ -91,8 +91,8 @@ class UpdateEngineClient : public brillo::Daemon {
     // of the ProcessFlags method after the Daemon initialization is done.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::Bind(&UpdateEngineClient::ProcessFlagsAndExit,
-                   base::Unretained(this)));
+        base::BindOnce(&UpdateEngineClient::ProcessFlagsAndExit,
+                       base::Unretained(this)));
     return EX_OK;
   }
 

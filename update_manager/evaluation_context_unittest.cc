@@ -31,8 +31,6 @@
 #include "update_engine/update_manager/mock_variable.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
-using base::Bind;
-using base::Closure;
 using base::Time;
 using base::TimeDelta;
 using brillo::MessageLoop;
@@ -67,7 +65,7 @@ void ReadVar(shared_ptr<EvaluationContext> ec, Variable<T>* var) {
 
 // Runs |evaluation|; if the value pointed by |count_p| is greater than zero,
 // decrement it and schedule a reevaluation; otherwise, writes true to |done_p|.
-void EvaluateRepeatedly(Closure evaluation,
+void EvaluateRepeatedly(base::RepeatingClosure evaluation,
                         shared_ptr<EvaluationContext> ec,
                         int* count_p,
                         bool* done_p) {
@@ -75,7 +73,8 @@ void EvaluateRepeatedly(Closure evaluation,
 
   // Schedule reevaluation if needed.
   if (*count_p > 0) {
-    Closure closure = Bind(EvaluateRepeatedly, evaluation, ec, count_p, done_p);
+    base::RepeatingClosure closure = base::BindRepeating(
+        EvaluateRepeatedly, evaluation, ec, count_p, done_p);
     ASSERT_TRUE(ec->RunOnValueChangeOrTimeout(closure))
         << "Failed to schedule reevaluation, count_p=" << *count_p;
     (*count_p)--;
@@ -218,7 +217,8 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutWithVariables) {
   eval_ctx_->GetValue(&fake_async_var_);
 
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until we signal a ValueChaged.
   MessageLoopRunMaxIterations(MessageLoop::current(), 100);
   EXPECT_FALSE(value);
@@ -237,8 +237,10 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutCalledTwice) {
   eval_ctx_->GetValue(&fake_async_var_);
 
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
-  EXPECT_FALSE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
+  EXPECT_FALSE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
 
   // The scheduled event should still work.
   fake_async_var_.NotifyValueChanged();
@@ -252,12 +254,14 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutRunsFromTimeout) {
   eval_ctx_->GetValue(&fake_poll_var_);
 
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until the timeout occurs.
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_FALSE(value);
-  MessageLoopRunUntil(
-      MessageLoop::current(), base::Seconds(10), Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      base::Seconds(10),
+                      base::BindRepeating(&GetBoolean, &value));
   EXPECT_TRUE(value);
 }
 
@@ -268,12 +272,14 @@ TEST_F(UmEvaluationContextTest, RunOnValueChangeOrTimeoutExpires) {
   eval_ctx_->GetValue(&fake_async_var_);
 
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
   // Check that the scheduled callback isn't run until the timeout occurs.
   MessageLoopRunMaxIterations(MessageLoop::current(), 10);
   EXPECT_FALSE(value);
-  MessageLoopRunUntil(
-      MessageLoop::current(), base::Seconds(10), Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      base::Seconds(10),
+                      base::BindRepeating(&GetBoolean, &value));
   EXPECT_TRUE(value);
 
   // Ensure that we cannot reschedule an evaluation.
@@ -290,7 +296,8 @@ TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
   eval_ctx_->GetValue(&fake_async_var_);
 
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
   eval_ctx_ = nullptr;
 
   // This should not trigger the callback since the EvaluationContext waiting
@@ -304,7 +311,8 @@ TEST_F(UmEvaluationContextTest, RemoveObserversAndTimeoutTest) {
 TEST_F(UmEvaluationContextTest,
        RunOnValueChangeOrTimeoutReevaluatesRepeatedly) {
   fake_poll_var_.reset(new string("Polled value"));
-  Closure evaluation = Bind(ReadVar<string>, eval_ctx_, &fake_poll_var_);
+  base::RepeatingClosure evaluation =
+      base::BindRepeating(ReadVar<string>, eval_ctx_, &fake_poll_var_);
   int num_reevaluations = 2;
   bool done = false;
 
@@ -312,11 +320,12 @@ TEST_F(UmEvaluationContextTest,
   evaluation.Run();
 
   // Schedule repeated reevaluations.
-  Closure closure = Bind(
+  base::RepeatingClosure closure = base::BindRepeating(
       EvaluateRepeatedly, evaluation, eval_ctx_, &num_reevaluations, &done);
   ASSERT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(closure));
-  MessageLoopRunUntil(
-      MessageLoop::current(), base::Seconds(10), Bind(&GetBoolean, &done));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      base::Seconds(10),
+                      base::BindRepeating(&GetBoolean, &done));
   EXPECT_EQ(0, num_reevaluations);
 }
 
@@ -339,14 +348,16 @@ TEST_F(UmEvaluationContextTest, TimeoutEventAfterDeleteTest) {
   fake_short_poll_var.reset(new string("Polled value"));
   eval_ctx_->GetValue(&fake_short_poll_var);
   bool value = false;
-  EXPECT_TRUE(eval_ctx_->RunOnValueChangeOrTimeout(Bind(&SetTrue, &value)));
+  EXPECT_TRUE(
+      eval_ctx_->RunOnValueChangeOrTimeout(base::BindOnce(&SetTrue, &value)));
   // Remove the last reference to the EvaluationContext and run the loop for
   // 10 seconds to give time to the main loop to trigger the timeout Event (of 1
   // second). Our callback should not be called because the EvaluationContext
   // was removed before the timeout event is attended.
   eval_ctx_ = nullptr;
-  MessageLoopRunUntil(
-      MessageLoop::current(), base::Seconds(10), Bind(&GetBoolean, &value));
+  MessageLoopRunUntil(MessageLoop::current(),
+                      base::Seconds(10),
+                      base::BindRepeating(&GetBoolean, &value));
   EXPECT_FALSE(value);
 }
 

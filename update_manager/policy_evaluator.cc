@@ -68,29 +68,29 @@ EvalStatus PolicyEvaluator::Evaluate() {
 }
 
 void PolicyEvaluator::ScheduleEvaluation(
-    base::Callback<void(EvalStatus)> callback) {
-  base::Closure eval_callback =
-      base::Bind(&PolicyEvaluator::OnPolicyReadyToEvaluate,
-                 weak_ptr_factory_.GetWeakPtr(),
-                 std::move(callback));
-  brillo::MessageLoop::current()->PostTask(FROM_HERE, eval_callback);
+    base::OnceCallback<void(EvalStatus)> callback) {
+  brillo::MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&PolicyEvaluator::OnPolicyReadyToEvaluate,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(callback)));
 }
 
 void PolicyEvaluator::OnPolicyReadyToEvaluate(
-    base::Callback<void(EvalStatus)> callback) {
+    base::OnceCallback<void(EvalStatus)> callback) {
   // Evaluate the policy.
   EvalStatus status = Evaluate();
   if (status != EvalStatus::kAskMeAgainLater) {
-    callback.Run(status);
+    std::move(callback).Run(status);
     Unregister();
     return;
   }
 
   // Re-schedule the policy request based on used variables.
   if (ec_->RunOnValueChangeOrTimeout(
-          base::Bind(&PolicyEvaluator::OnPolicyReadyToEvaluate,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     callback)))
+          base::BindOnce(&PolicyEvaluator::OnPolicyReadyToEvaluate,
+                         weak_ptr_factory_.GetWeakPtr(),
+                         std::move(callback))))
     return;  // Reevaluation scheduled successfully.
 
   // Scheduling a reevaluation can fail because policy method didn't use any
@@ -99,7 +99,7 @@ void PolicyEvaluator::OnPolicyReadyToEvaluate(
   // use of the scheduling interface.
   LOG(ERROR) << "Failed to schedule a reevaluation of policy"
              << "; this is a bug.";
-  callback.Run(status);
+  std::move(callback).Run(status);
   Unregister();
 }
 

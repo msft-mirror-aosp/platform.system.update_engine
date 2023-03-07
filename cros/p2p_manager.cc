@@ -57,7 +57,6 @@
 #include "update_engine/update_manager/p2p_enabled_policy.h"
 #include "update_engine/update_manager/update_manager.h"
 
-using base::Bind;
 using base::FilePath;
 using base::StringPrintf;
 using base::Time;
@@ -374,7 +373,7 @@ bool P2PManagerImpl::PerformHousekeeping() {
 class LookupData {
  public:
   explicit LookupData(P2PManager::LookupCallback callback)
-      : callback_(callback) {}
+      : callback_(std::move(callback)) {}
 
   ~LookupData() {
     if (timeout_task_ != MessageLoop::kTaskIdNull)
@@ -405,7 +404,7 @@ class LookupData {
     if (timeout > TimeDelta()) {
       timeout_task_ = MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
-          Bind(&LookupData::OnTimeout, base::Unretained(this)),
+          base::BindOnce(&LookupData::OnTimeout, base::Unretained(this)),
           timeout);
     }
   }
@@ -414,8 +413,8 @@ class LookupData {
   void ReportErrorAndDeleteInIdle() {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        Bind(&LookupData::OnIdleForReportErrorAndDelete,
-             base::Unretained(this)));
+        base::BindOnce(&LookupData::OnIdleForReportErrorAndDelete,
+                       base::Unretained(this)));
   }
 
   void OnIdleForReportErrorAndDelete() {
@@ -425,7 +424,7 @@ class LookupData {
 
   void IssueCallback(const string& url) {
     if (!callback_.is_null())
-      callback_.Run(url);
+      std::move(callback_).Run(url);
   }
 
   void ReportError() {
@@ -488,7 +487,7 @@ void P2PManagerImpl::LookupUrlForFile(const string& file_id,
                                       size_t minimum_size,
                                       TimeDelta max_time_to_wait,
                                       LookupCallback callback) {
-  LookupData* lookup_data = new LookupData(callback);
+  LookupData* lookup_data = new LookupData(std::move(callback));
   string file_id_with_ext = file_id + "." + file_extension_;
   vector<string> args =
       configuration_->GetP2PClientArgs(file_id_with_ext, minimum_size);
@@ -695,7 +694,8 @@ void P2PManagerImpl::ScheduleEnabledStatusChange() {
   update_manager_->PolicyRequest(
       std::make_unique<P2PEnabledChangedPolicy>(),
       policy_data_,
-      Bind(&P2PManagerImpl::OnEnabledStatusChange, base::Unretained(this)));
+      base::BindOnce(&P2PManagerImpl::OnEnabledStatusChange,
+                     base::Unretained(this)));
   waiting_for_enabled_status_change_ = true;
 }
 

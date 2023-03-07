@@ -98,7 +98,7 @@ bool LaunchProcess(const vector<string>& cmd,
   }
   proc->SetCloseUnusedFileDescriptors(true);
   proc->RedirectUsingPipe(STDOUT_FILENO, false);
-  proc->SetPreExecCallback(base::Bind(&SetupChild, env, flags));
+  proc->SetPreExecCallback(base::BindOnce(&SetupChild, env, flags));
 
   LOG(INFO) << "Running \"" << base::JoinString(cmd, " ") << "\"";
   return proc->Start();
@@ -193,7 +193,8 @@ pid_t Subprocess::ExecFlags(const vector<string>& cmd,
   CHECK(process_reaper_.WatchForChild(
       FROM_HERE,
       pid,
-      base::Bind(&Subprocess::ChildExitedCallback, base::Unretained(this))));
+      base::BindOnce(&Subprocess::ChildExitedCallback,
+                     base::Unretained(this))));
 
   record->stdout_fd = record->proc.GetPipe(STDOUT_FILENO);
   // Capture the subprocess output. Make our end of the pipe non-blocking.

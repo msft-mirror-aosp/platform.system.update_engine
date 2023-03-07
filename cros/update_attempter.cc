@@ -72,8 +72,6 @@
 #include "update_engine/update_manager/update_manager.h"
 #include "update_engine/update_status_utils.h"
 
-using base::Bind;
-using base::Callback;
 using base::FilePath;
 using base::Time;
 using base::TimeDelta;
@@ -218,8 +216,8 @@ bool UpdateAttempter::ScheduleUpdates(const ScheduleUpdatesParams& params) {
   SystemState::Get()->update_manager()->PolicyRequest(
       std::make_unique<UpdateCheckAllowedPolicy>(),
       policy_data_,  // Do not move because we don't want transfer of ownership.
-      base::Bind(&UpdateAttempter::OnUpdateScheduled,
-                 weak_ptr_factory_.GetWeakPtr()));
+      base::BindOnce(&UpdateAttempter::OnUpdateScheduled,
+                     weak_ptr_factory_.GetWeakPtr()));
 
   waiting_for_scheduled_check_ = true;
   return true;
@@ -239,20 +237,21 @@ bool UpdateAttempter::StartUpdater() {
   // Update boot flags after delay.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&ActionProcessor::StartProcessing,
-                 base::Unretained(&aux_processor_)),
+      base::BindOnce(&ActionProcessor::StartProcessing,
+                     base::Unretained(&aux_processor_)),
       base::Seconds(60));
 
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
-  MessageLoop::current()->PostTask(FROM_HERE,
-                                   base::Bind(&UpdateAttempter::BroadcastStatus,
-                                              weak_ptr_factory_.GetWeakPtr()));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempter::BroadcastStatus,
+                     weak_ptr_factory_.GetWeakPtr()));
 
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempter::UpdateEngineStarted,
-                 weak_ptr_factory_.GetWeakPtr()));
+      base::BindOnce(&UpdateAttempter::UpdateEngineStarted,
+                     weak_ptr_factory_.GetWeakPtr()));
   return true;
 }
 
@@ -2033,8 +2032,9 @@ void UpdateAttempter::ScheduleProcessingStart() {
   LOG(INFO) << "Scheduling an action processor start.";
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      Bind([](ActionProcessor* processor) { processor->StartProcessing(); },
-           base::Unretained(processor_.get())));
+      base::BindOnce(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(processor_.get())));
 }
 
 void UpdateAttempter::DisableDeltaUpdateIfNeeded() {

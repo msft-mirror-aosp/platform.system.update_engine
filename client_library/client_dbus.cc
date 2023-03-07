@@ -231,10 +231,10 @@ bool DBusUpdateEngineClient::RegisterStatusUpdateHandler(
   }
 
   proxy_->RegisterStatusUpdateAdvancedSignalHandler(
-      base::Bind(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
-                 base::Unretained(this)),
-      base::Bind(&DBusUpdateEngineClient::DBusStatusHandlersRegistered,
-                 base::Unretained(this)));
+      base::BindRepeating(&DBusUpdateEngineClient::RunStatusUpdateHandlers,
+                          base::Unretained(this)),
+      base::BindOnce(&DBusUpdateEngineClient::DBusStatusHandlersRegistered,
+                     base::Unretained(this)));
 
   dbus_handler_registered_ = true;
 

@@ -54,7 +54,7 @@ class RetryPollVariable : public Variable<T> {
  public:
   RetryPollVariable(const string& name,
                     const base::TimeDelta poll_interval,
-                    base::Callback<bool(T* res)> func)
+                    base::RepeatingCallback<bool(T* res)> func)
       : Variable<T>(name, poll_interval),
         func_(func),
         base_interval_(poll_interval) {
@@ -87,7 +87,7 @@ class RetryPollVariable : public Variable<T> {
 
  private:
   // The function to be called, stored as a base::Callback.
-  base::Callback<bool(T*)> func_;
+  base::RepeatingCallback<bool(T*)> func_;
 
   // The desired polling interval when |func_| works and returns true.
   base::TimeDelta base_interval_;
@@ -108,9 +108,10 @@ bool RealSystemProvider::Init() {
 
   var_is_oobe_complete_.reset(new CallCopyVariable<bool>(
       "is_oobe_complete",
-      base::Bind(&chromeos_update_engine::HardwareInterface::IsOOBEComplete,
-                 base::Unretained(SystemState::Get()->hardware()),
-                 nullptr)));
+      base::BindRepeating(
+          &chromeos_update_engine::HardwareInterface::IsOOBEComplete,
+          base::Unretained(SystemState::Get()->hardware()),
+          nullptr)));
 
   var_num_slots_.reset(new ConstCopyVariable<unsigned int>(
       "num_slots", SystemState::Get()->boot_control()->GetNumSlots()));
@@ -118,8 +119,9 @@ bool RealSystemProvider::Init() {
   var_kiosk_required_platform_version_.reset(new RetryPollVariable<string>(
       "kiosk_required_platform_version",
       base::Hours(5),  // Same as Chrome's CWS poll.
-      base::Bind(&RealSystemProvider::GetKioskAppRequiredPlatformVersion,
-                 base::Unretained(this))));
+      base::BindRepeating(
+          &RealSystemProvider::GetKioskAppRequiredPlatformVersion,
+          base::Unretained(this))));
 
   var_chromeos_version_.reset(new ConstCopyVariable<base::Version>(
       "chromeos_version",
@@ -130,14 +132,16 @@ bool RealSystemProvider::Init() {
 
   var_is_resuming_from_hibernate_.reset(new CallCopyVariable<bool>(
       "is_resuming_from_hibernate",
-      base::Bind(&chromeos_update_engine::HibernateInterface::IsResuming,
-                 base::Unretained(SystemState::Get()->hibernate()))));
+      base::BindRepeating(
+          &chromeos_update_engine::HibernateInterface::IsResuming,
+          base::Unretained(SystemState::Get()->hibernate()))));
 
   var_abort_resume_from_hibernate_.reset(new CallCopyVariable<bool>(
       "abort_resume_from_hibernate",
-      base::Bind(&chromeos_update_engine::HibernateInterface::AbortResume,
-                 base::Unretained(SystemState::Get()->hibernate()),
-                 "System update pending for too long")));
+      base::BindRepeating(
+          &chromeos_update_engine::HibernateInterface::AbortResume,
+          base::Unretained(SystemState::Get()->hibernate()),
+          "System update pending for too long")));
 
   return true;
 }

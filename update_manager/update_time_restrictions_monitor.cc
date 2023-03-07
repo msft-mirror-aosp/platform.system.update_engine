@@ -77,8 +77,8 @@ void UpdateTimeRestrictionsMonitor::StartMonitoring() {
     WaitForRestrictedIntervalStarts(*new_intervals);
 
   const bool is_registered = evaluation_context_.RunOnValueChangeOrTimeout(
-      base::Bind(&UpdateTimeRestrictionsMonitor::OnIntervalsChanged,
-                 base::Unretained(this)));
+      base::BindOnce(&UpdateTimeRestrictionsMonitor::OnIntervalsChanged,
+                     base::Unretained(this)));
   DCHECK(is_registered);
 }
 
@@ -104,8 +104,9 @@ void UpdateTimeRestrictionsMonitor::WaitForRestrictedIntervalStarts(
 
   timeout_event_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&UpdateTimeRestrictionsMonitor::HandleRestrictedIntervalStarts,
-                 weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(
+          &UpdateTimeRestrictionsMonitor::HandleRestrictedIntervalStarts,
+          weak_ptr_factory_.GetWeakPtr()),
       duration_till_start);
 }
 

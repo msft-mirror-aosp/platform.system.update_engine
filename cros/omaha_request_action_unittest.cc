@@ -590,7 +590,7 @@ bool OmahaRequestActionTest::TestUpdateCheck() {
                                tuc_params_.expected_download_error_code))
       .Times(tuc_params_.ping_only ? 0 : 1);
 
-  loop_.PostTask(base::Bind(
+  loop_.PostTask(base::BindOnce(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
       base::Unretained(&processor)));
   loop_.Run();
@@ -616,7 +616,7 @@ void OmahaRequestActionTest::TestEvent(OmahaEvent* event,
   processor.set_delegate(&delegate_);
   processor.EnqueueAction(std::move(action));
 
-  loop_.PostTask(base::Bind(
+  loop_.PostTask(base::BindOnce(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
       base::Unretained(&processor)));
   loop_.Run();
@@ -1588,7 +1588,7 @@ TEST_F(OmahaRequestActionTest, NoOutputPipeTest) {
   processor.set_delegate(&delegate_);
   processor.EnqueueAction(std::move(action));
 
-  loop_.PostTask(base::Bind(
+  loop_.PostTask(base::BindOnce(
       [](ActionProcessor* processor) { processor->StartProcessing(); },
       base::Unretained(&processor)));
   loop_.Run();
@@ -1721,7 +1721,7 @@ TEST_F(OmahaRequestActionTest, TerminateTransferTest) {
   processor.set_delegate(&delegate);
   processor.EnqueueAction(std::move(action));
 
-  loop_.PostTask(base::Bind(&TerminateTransferTestStarter, &processor));
+  loop_.PostTask(base::BindOnce(&TerminateTransferTestStarter, &processor));
   loop_.Run();
   EXPECT_FALSE(loop_.PendingTasks());
 }

@@ -31,8 +31,6 @@
 #include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 
-using base::Callback;
-using base::Closure;
 using base::Time;
 using base::TimeDelta;
 using brillo::MessageLoop;
@@ -79,7 +77,7 @@ EvaluationContext::~EvaluationContext() {
   RemoveObserversAndTimeout();
 }
 
-unique_ptr<Closure> EvaluationContext::RemoveObserversAndTimeout() {
+unique_ptr<base::OnceClosure> EvaluationContext::RemoveObserversAndTimeout() {
   for (auto& it : value_cache_) {
     if (it.first->GetMode() == kVariableModeAsync)
       it.first->RemoveObserver(this);
@@ -119,10 +117,10 @@ void EvaluationContext::OnTimeout() {
 
 void EvaluationContext::OnValueChangedOrTimeout() {
   // Copy the callback handle locally, allowing it to be reassigned.
-  unique_ptr<Closure> callback = RemoveObserversAndTimeout();
+  unique_ptr<base::OnceClosure> callback = RemoveObserversAndTimeout();
 
   if (callback.get())
-    callback->Run();
+    std::move(*callback).Run();
 }
 
 bool EvaluationContext::IsWallclockTimeGreaterThan(Time timestamp) {
@@ -158,7 +156,7 @@ void EvaluationContext::ResetExpiration() {
   is_expired_ = false;
 }
 
-bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
+bool EvaluationContext::RunOnValueChangeOrTimeout(base::OnceClosure callback) {
   // Check that the method was not called more than once.
   if (callback_.get()) {
     LOG(ERROR) << "RunOnValueChangeOrTimeout called more than once.";
@@ -208,7 +206,7 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
     timeout = expiration;
 
   // Store the reevaluation callback.
-  callback_.reset(new Closure(std::move(callback)));
+  callback_.reset(new base::OnceClosure(std::move(callback)));
 
   // Schedule a timeout event, if one is set.
   if (!timeout.is_max()) {
@@ -216,8 +214,8 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(Closure callback) {
                << chromeos_update_engine::utils::FormatTimeDelta(timeout);
     timeout_event_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&EvaluationContext::OnTimeout,
-                   weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&EvaluationContext::OnTimeout,
+                       weak_ptr_factory_.GetWeakPtr()),
         timeout);
   }
 

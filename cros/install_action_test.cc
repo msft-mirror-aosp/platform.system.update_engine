@@ -155,7 +155,7 @@ TEST_F(InstallActionTest, ManifestReadFailure) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();
@@ -186,7 +186,7 @@ TEST_F(InstallActionTest, PerformSuccessfulTest) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();
@@ -217,7 +217,7 @@ TEST_F(InstallActionTest, PerformInvalidOffsetTest) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();
@@ -251,7 +251,7 @@ TEST_F(InstallActionTest, PerformInvalidShaTest) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();

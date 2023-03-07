@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_CROS_FAKE_P2P_MANAGER_H_
 
 #include <string>
+#include <utility>
 
 #include "update_engine/cros/p2p_manager.h"
 
@@ -50,7 +51,7 @@ class FakeP2PManager : public P2PManager {
                         size_t minimum_size,
                         base::TimeDelta max_time_to_wait,
                         LookupCallback callback) override {
-    callback.Run(lookup_url_for_file_result_);
+    std::move(callback).Run(lookup_url_for_file_result_);
   }
 
   bool FileShare(const std::string& file_id, size_t expected_size) override {

@@ -102,14 +102,14 @@ class EvaluationContext : private BaseVariable::ObserverInterface {
   // expiration occurred, prior to re-evaluating the policy.
   void ResetExpiration();
 
-  // Schedules the passed |callback| closure to be called when a cached
+  // Schedules the passed `callback` closure to be called when a cached
   // variable changes its value, a polling interval passes, or the context
   // expiration occurs. If none of these events can happen, for example if
   // there's no cached variable, this method returns false.
   //
   // Right before the passed closure is called the EvaluationContext is
   // reset, removing all the non-const cached values.
-  bool RunOnValueChangeOrTimeout(base::Closure callback);
+  bool RunOnValueChangeOrTimeout(base::OnceClosure callback);
 
   // Returns a textual representation of the evaluation context,
   // including the variables and their values. This is intended only
@@ -119,7 +119,7 @@ class EvaluationContext : private BaseVariable::ObserverInterface {
   // Removes all the Observers callbacks and timeout events scheduled by
   // RunOnValueChangeOrTimeout(). Also releases and returns the closure
   // associated with these events. This method is idempotent.
-  std::unique_ptr<base::Closure> RemoveObserversAndTimeout();
+  std::unique_ptr<base::OnceClosure> RemoveObserversAndTimeout();
 
  private:
   friend class UmEvaluationContextTest;
@@ -153,7 +153,7 @@ class EvaluationContext : private BaseVariable::ObserverInterface {
   // timeout, or notifying about the evaluation context expiration. It is up to
   // the caller to determine whether or not expiration occurred via
   // is_expired().
-  std::unique_ptr<base::Closure> callback_;
+  std::unique_ptr<base::OnceClosure> callback_;
 
   // The TaskId returned by the message loop identifying the timeout callback.
   // Used for canceling the timeout callback.

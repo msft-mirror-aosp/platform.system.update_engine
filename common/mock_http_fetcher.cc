@@ -65,7 +65,8 @@ void MockHttpFetcher::SendData(bool skip_delivery) {
     CHECK(MessageLoop::current());
     timeout_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&MockHttpFetcher::TimeoutCallback, base::Unretained(this)),
+        base::BindOnce(&MockHttpFetcher::TimeoutCallback,
+                       base::Unretained(this)),
         base::Milliseconds(10));
   }
 

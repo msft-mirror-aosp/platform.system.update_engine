@@ -43,9 +43,10 @@ EvalStatus UpdateManager::PolicyRequest(
       .Evaluate();
 }
 
-void UpdateManager::PolicyRequest(std::unique_ptr<PolicyInterface> policy,
-                                  std::shared_ptr<PolicyDataInterface> data,
-                                  base::Callback<void(EvalStatus)> callback) {
+void UpdateManager::PolicyRequest(
+    std::unique_ptr<PolicyInterface> policy,
+    std::shared_ptr<PolicyDataInterface> data,
+    base::OnceCallback<void(EvalStatus)> callback) {
   auto ec = std::make_unique<EvaluationContext>(evaluation_timeout_,
                                                 expiration_timeout_);
   evaluators_.push_back(std::make_unique<PolicyEvaluator>(

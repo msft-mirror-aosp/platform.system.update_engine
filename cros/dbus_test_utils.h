@@ -50,19 +50,21 @@ class MockSignalHandler {
   // Returns whether the signal handler is registered.
   bool IsHandlerRegistered() const { return signal_callback_ != nullptr; }
 
-  const base::Callback<T>& signal_callback() { return *signal_callback_.get(); }
+  const base::RepeatingCallback<T>& signal_callback() {
+    return *signal_callback_.get();
+  }
 
   void GrabCallbacks(
-      const base::Callback<T>& signal_callback,
+      const base::RepeatingCallback<T>& signal_callback,
       dbus::ObjectProxy::OnConnectedCallback* on_connected_callback) {
-    signal_callback_.reset(new base::Callback<T>(signal_callback));
+    signal_callback_.reset(new base::RepeatingCallback<T>(signal_callback));
     on_connected_callback_.reset(new dbus::ObjectProxy::OnConnectedCallback(
         std::move(*on_connected_callback)));
     // Notify from the main loop that the callback was connected.
     callback_connected_task_ = brillo::MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(&MockSignalHandler<T>::OnCallbackConnected,
-                   base::Unretained(this)));
+        base::BindOnce(&MockSignalHandler<T>::OnCallbackConnected,
+                       base::Unretained(this)));
   }
 
  private:
@@ -74,7 +76,7 @@ class MockSignalHandler {
   brillo::MessageLoop::TaskId callback_connected_task_{
       brillo::MessageLoop::kTaskIdNull};
 
-  std::unique_ptr<base::Callback<T>> signal_callback_;
+  std::unique_ptr<base::RepeatingCallback<T>> signal_callback_;
   std::unique_ptr<dbus::ObjectProxy::OnConnectedCallback>
       on_connected_callback_;
 };

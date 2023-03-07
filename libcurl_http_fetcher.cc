@@ -326,9 +326,9 @@ void LibcurlHttpFetcher::SetCurlOptionsForFile() {
 void LibcurlHttpFetcher::BeginTransfer(const string& url) {
   CHECK(!transfer_in_progress_);
   url_ = url;
-  auto closure =
-      base::Bind(&LibcurlHttpFetcher::ProxiesResolved, base::Unretained(this));
-  ResolveProxiesForUrl(url_, closure);
+  ResolveProxiesForUrl(url_,
+                       base::BindOnce(&LibcurlHttpFetcher::ProxiesResolved,
+                                      base::Unretained(this)));
 }
 
 void LibcurlHttpFetcher::ProxiesResolved() {
@@ -457,8 +457,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
 #endif
       MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
-          base::Bind(&LibcurlHttpFetcher::CurlPerformOnce,
-                     base::Unretained(this)),
+          base::BindOnce(&LibcurlHttpFetcher::CurlPerformOnce,
+                         base::Unretained(this)),
           base::Seconds(1));
       return;
     }
@@ -511,8 +511,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     no_network_retry_count_++;
     retry_task_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                   base::Unretained(this)),
+        base::BindOnce(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                       base::Unretained(this)),
         kNoNetworkRetryTime);
     LOG(INFO) << "No HTTP response, retry " << no_network_retry_count_;
   } else if ((!sent_byte_ && !IsHttpResponseSuccess()) ||
@@ -537,8 +537,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
       LOG(INFO) << "Retrying with next proxy setting";
       retry_task_id_ = MessageLoop::current()->PostTask(
           FROM_HERE,
-          base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                     base::Unretained(this)));
+          base::BindOnce(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                         base::Unretained(this)));
     } else {
       // Out of proxies. Give up.
       LOG(INFO) << "No further proxies, indicating transfer complete";
@@ -577,8 +577,8 @@ void LibcurlHttpFetcher::CurlPerformOnce() {
     LOG(INFO) << "Restarting transfer to download the remaining bytes";
     retry_task_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&LibcurlHttpFetcher::RetryTimeoutCallback,
-                   base::Unretained(this)),
+        base::BindOnce(&LibcurlHttpFetcher::RetryTimeoutCallback,
+                       base::Unretained(this)),
         retry_time_);
   } else {
     LOG(INFO) << "Transfer completed (" << http_response_code_ << "), "
@@ -757,8 +757,8 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
             << " seconds.";
     timeout_id_ = MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&LibcurlHttpFetcher::TimeoutCallback,
-                   base::Unretained(this)),
+        base::BindOnce(&LibcurlHttpFetcher::TimeoutCallback,
+                       base::Unretained(this)),
         idle_time_);
   }
 }
@@ -779,7 +779,8 @@ void LibcurlHttpFetcher::TimeoutCallback() {
   // be called back.
   timeout_id_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&LibcurlHttpFetcher::TimeoutCallback, base::Unretained(this)),
+      base::BindOnce(&LibcurlHttpFetcher::TimeoutCallback,
+                     base::Unretained(this)),
       idle_time_);
 
   // CurlPerformOnce() may call CleanUp(), so we need to schedule our callback

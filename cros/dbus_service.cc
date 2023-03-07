@@ -17,6 +17,7 @@
 #include "update_engine/cros/dbus_service.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <update_engine/dbus-constants.h>
@@ -231,9 +232,9 @@ UpdateEngineAdaptor::UpdateEngineAdaptor()
                    dbus::ObjectPath(update_engine::kUpdateEngineServicePath)) {}
 
 void UpdateEngineAdaptor::RegisterAsync(
-    const base::Callback<void(bool)>& completion_callback) {
+    base::OnceCallback<void(bool)> completion_callback) {
   RegisterWithDBusObject(&dbus_object_);
-  dbus_object_.RegisterAsync(completion_callback);
+  dbus_object_.RegisterAsync(std::move(completion_callback));
 }
 
 bool UpdateEngineAdaptor::RequestOwnership() {

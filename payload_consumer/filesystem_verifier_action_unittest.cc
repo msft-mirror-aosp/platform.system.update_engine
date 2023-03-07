@@ -145,7 +145,7 @@ bool FilesystemVerifierActionTest::DoTest(bool terminate_early,
   processor_.set_delegate(&delegate);
 
   loop_.PostTask(FROM_HERE,
-                 base::Bind(
+                 base::BindOnce(
                      [](ActionProcessor* processor, bool terminate_early) {
                        processor->StartProcessing();
                        if (terminate_early) {
@@ -313,7 +313,7 @@ TEST_F(FilesystemVerifierActionTest, RunAsRootSkipWriteVerityTest) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();

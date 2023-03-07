@@ -191,7 +191,7 @@ class UpdateEngineAdaptor : public org::chromium::UpdateEngineInterfaceAdaptor,
   // Register the DBus object with the update engine service asynchronously.
   // Calls |copmletion_callback| when done passing a boolean indicating if the
   // registration succeeded.
-  void RegisterAsync(const base::Callback<void(bool)>& completion_callback);
+  void RegisterAsync(base::OnceCallback<void(bool)> completion_callback);
 
   // Takes ownership of the well-known DBus name and returns whether it
   // succeeded.

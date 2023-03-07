@@ -61,11 +61,11 @@ class PolicyEvaluator {
   // Same as the above function but the asyncronous version. A call to this
   // function returns immediately and an evalution is scheduled in the main
   // message loop. The passed |callback| is called when the policy is evaluated.
-  void ScheduleEvaluation(base::Callback<void(EvalStatus)> callback);
+  void ScheduleEvaluation(base::OnceCallback<void(EvalStatus)> callback);
 
  private:
   // Internal function to reschedule policy evaluation.
-  void OnPolicyReadyToEvaluate(base::Callback<void(EvalStatus)> callback);
+  void OnPolicyReadyToEvaluate(base::OnceCallback<void(EvalStatus)> callback);
   State* state_;
   std::unique_ptr<EvaluationContext> ec_;
   std::unique_ptr<PolicyInterface> policy_;

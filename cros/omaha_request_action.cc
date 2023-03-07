@@ -906,8 +906,8 @@ void OmahaRequestAction::LookupPayloadViaP2P() {
         file_id,
         minimum_size,
         kMaxP2PNetworkWaitTime,
-        base::Bind(&OmahaRequestAction::OnLookupPayloadViaP2PCompleted,
-                   base::Unretained(this)));
+        base::BindOnce(&OmahaRequestAction::OnLookupPayloadViaP2PCompleted,
+                       base::Unretained(this)));
   }
 }
 

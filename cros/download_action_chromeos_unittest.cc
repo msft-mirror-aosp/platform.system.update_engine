@@ -199,7 +199,7 @@ void TestWithData(const brillo::Blob& data,
 
   loop.PostTask(
       FROM_HERE,
-      base::Bind(&StartProcessorInRunLoop, &processor, http_fetcher_ptr));
+      base::BindOnce(&StartProcessorInRunLoop, &processor, http_fetcher_ptr));
   loop.Run();
   EXPECT_FALSE(loop.PendingTasks());
 
@@ -330,7 +330,7 @@ TEST(DownloadActionTest, MultiPayloadProgressTest) {
 
   loop.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor)));
   loop.Run();
@@ -387,7 +387,7 @@ void TestTerminateEarly(bool use_download_delegate) {
     processor.EnqueueAction(std::move(download_action));
 
     loop.PostTask(FROM_HERE,
-                  base::Bind(&TerminateEarlyTestStarter, &processor));
+                  base::BindOnce(&TerminateEarlyTestStarter, &processor));
     loop.Run();
     EXPECT_FALSE(loop.PendingTasks());
   }
@@ -497,7 +497,7 @@ TEST(DownloadActionTest, PassObjectOutTest) {
 
   loop.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor)));
   loop.Run();
@@ -577,7 +577,7 @@ class P2PDownloadActionTest : public testing::Test {
 
     loop_.PostTask(
         FROM_HERE,
-        base::Bind(
+        base::BindOnce(
             [](P2PDownloadActionTest* action_test, HttpFetcher* http_fetcher) {
               action_test->processor_.StartProcessing();
               http_fetcher->SetOffset(action_test->start_at_offset_);
@@ -742,7 +742,7 @@ TEST_F(P2PDownloadActionTest, MultiplePayload) {
 
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           [](ActionProcessor* processor) { processor->StartProcessing(); },
           base::Unretained(&processor_)));
   loop_.Run();

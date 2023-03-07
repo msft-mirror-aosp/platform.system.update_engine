@@ -62,10 +62,11 @@ bool RealDevicePolicyProvider::Init() {
   // We also listen for signals from the session manager to force a device
   // policy refresh.
   session_manager_proxy_->RegisterPropertyChangeCompleteSignalHandler(
-      base::Bind(&RealDevicePolicyProvider::OnPropertyChangedCompletedSignal,
-                 base::Unretained(this)),
-      base::Bind(&RealDevicePolicyProvider::OnSignalConnected,
-                 base::Unretained(this)));
+      base::BindRepeating(
+          &RealDevicePolicyProvider::OnPropertyChangedCompletedSignal,
+          base::Unretained(this)),
+      base::BindOnce(&RealDevicePolicyProvider::OnSignalConnected,
+                     base::Unretained(this)));
   return true;
 }
 
@@ -100,8 +101,9 @@ void RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule() {
   RefreshDevicePolicy();
   scheduled_refresh_ = MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule,
-                 base::Unretained(this)),
+      base::BindOnce(
+          &RealDevicePolicyProvider::RefreshDevicePolicyAndReschedule,
+          base::Unretained(this)),
       kDevicePolicyRefreshRateTime);
 }
 

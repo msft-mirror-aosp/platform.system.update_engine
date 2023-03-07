@@ -146,11 +146,12 @@ class ConstCopyVariable : public Variable<T> {
 template <typename T>
 class CallCopyVariable : public Variable<T> {
  public:
-  CallCopyVariable(const std::string& name, base::Callback<T(void)> func)
+  CallCopyVariable(const std::string& name,
+                   base::RepeatingCallback<T(void)> func)
       : Variable<T>(name, kVariableModePoll), func_(func) {}
   CallCopyVariable(const std::string& name,
                    const base::TimeDelta poll_interval,
-                   base::Callback<T(void)> func)
+                   base::RepeatingCallback<T(void)> func)
       : Variable<T>(name, poll_interval), func_(func) {}
   CallCopyVariable(const CallCopyVariable&) = delete;
   CallCopyVariable& operator=(const CallCopyVariable&) = delete;
@@ -168,7 +169,7 @@ class CallCopyVariable : public Variable<T> {
   FRIEND_TEST(UmCallCopyVariableTest, SimpleTest);
 
   // The function to be called, stored as a base::Callback.
-  base::Callback<T(void)> func_;
+  base::RepeatingCallback<T(void)> func_;
 };
 
 // A Variable class to implement simple Async variables. It provides two methods

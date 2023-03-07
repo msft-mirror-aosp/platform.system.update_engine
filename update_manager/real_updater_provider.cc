@@ -384,9 +384,10 @@ class ForcedUpdateRequestedVariable
       : UpdaterVariableBase<UpdateRequestStatus>::UpdaterVariableBase(
             name, kVariableModeAsync) {
     SystemState::Get()->update_attempter()->set_forced_update_pending_callback(
-        new base::Callback<void(bool, bool)>(  // NOLINT(readability/function)
-            base::Bind(&ForcedUpdateRequestedVariable::Reset,
-                       base::Unretained(this))));
+        new base::RepeatingCallback<void(
+            bool, bool)>(  // NOLINT(readability/function)
+            base::BindRepeating(&ForcedUpdateRequestedVariable::Reset,
+                                base::Unretained(this))));
   }
   ForcedUpdateRequestedVariable(const ForcedUpdateRequestedVariable&) = delete;
   ForcedUpdateRequestedVariable& operator=(

@@ -52,8 +52,8 @@ int DaemonChromeOS::OnInit() {
   dbus_adaptor_.reset(new UpdateEngineAdaptor());
   SystemState::Get()->update_attempter()->AddObserver(dbus_adaptor_.get());
 
-  dbus_adaptor_->RegisterAsync(
-      base::Bind(&DaemonChromeOS::OnDBusRegistered, base::Unretained(this)));
+  dbus_adaptor_->RegisterAsync(base::BindOnce(&DaemonChromeOS::OnDBusRegistered,
+                                              base::Unretained(this)));
   LOG(INFO) << "Waiting for DBus object to be registered.";
   return EX_OK;
 }

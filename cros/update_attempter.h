@@ -267,7 +267,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Note that only one callback can be set, so effectively at most one client
   // can be notified.
   virtual void set_forced_update_pending_callback(
-      base::Callback<void(bool, bool)>* callback) {
+      base::RepeatingCallback<void(bool, bool)>* callback) {
     forced_update_pending_callback_.reset(callback);
   }
 
@@ -639,7 +639,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // cleared by an update attempt (false). The second argument indicates whether
   // this is an interactive update, and its value is significant iff the first
   // argument is true.
-  std::unique_ptr<base::Callback<void(bool, bool)>>
+  std::unique_ptr<base::RepeatingCallback<void(bool, bool)>>
       forced_update_pending_callback_;
 
   // The |app_version| and |omaha_url| parameters received during the latest

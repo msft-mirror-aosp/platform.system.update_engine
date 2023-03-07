@@ -70,7 +70,7 @@ class UpdateManager {
   // with the EvalStatus::kAskMeAgainLater status (which indicates an error).
   void PolicyRequest(std::unique_ptr<PolicyInterface> policy,
                      std::shared_ptr<PolicyDataInterface> data,
-                     base::Callback<void(EvalStatus)> callback);
+                     base::OnceCallback<void(EvalStatus)> callback);
 
   // Removes the |evaluator| from the internal list of |evaluators_|.
   void Unregister(PolicyEvaluator* evaluator);

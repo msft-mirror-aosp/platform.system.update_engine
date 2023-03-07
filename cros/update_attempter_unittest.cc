@@ -27,6 +27,7 @@
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
+#include <base/functional/callback_helpers.h>
 #include <base/logging.h>
 #include <base/task/single_thread_task_executor.h>
 #include <brillo/message_loops/base_message_loop.h>
@@ -239,7 +240,7 @@ class UpdateAttempterTest : public ::testing::Test {
     certificate_checker_->Init();
 
     attempter_.set_forced_update_pending_callback(
-        new base::Callback<void(bool, bool)>(base::Bind([](bool, bool) {})));
+        new base::RepeatingCallback<void(bool, bool)>(base::DoNothing()));
     // Finish initializing the attempter.
     attempter_.Init();
 
@@ -408,8 +409,8 @@ void UpdateAttempterTest::TestProcessingDone() {
 void UpdateAttempterTest::ScheduleQuitMainLoop() {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind([](brillo::BaseMessageLoop* loop) { loop->BreakLoop(); },
-                 base::Unretained(&loop_)));
+      base::BindOnce([](brillo::BaseMessageLoop* loop) { loop->BreakLoop(); },
+                     base::Unretained(&loop_)));
 }
 
 void UpdateAttempterTest::SessionIdTestChange() {
@@ -422,8 +423,8 @@ void UpdateAttempterTest::SessionIdTestChange() {
 
 TEST_F(UpdateAttempterTest, SessionIdTestChange) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::SessionIdTestChange,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::SessionIdTestChange,
+                                base::Unretained(this)));
   loop_.Run();
 }
 
@@ -451,8 +452,9 @@ void UpdateAttempterTest::SessionIdTestEnforceEmptyStrPingOmaha() {
 TEST_F(UpdateAttempterTest, SessionIdTestEnforceEmptyStrPingOmaha) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempterTest::SessionIdTestEnforceEmptyStrPingOmaha,
-                 base::Unretained(this)));
+      base::BindOnce(
+          &UpdateAttempterTest::SessionIdTestEnforceEmptyStrPingOmaha,
+          base::Unretained(this)));
   loop_.Run();
 }
 
@@ -478,8 +480,8 @@ void UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow() {
 TEST_F(UpdateAttempterTest, SessionIdTestConsistencyInUpdateFlow) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow,
-                 base::Unretained(this)));
+      base::BindOnce(&UpdateAttempterTest::SessionIdTestConsistencyInUpdateFlow,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -505,9 +507,10 @@ void UpdateAttempterTest::SessionIdTestInDownloadAction() {
 }
 
 TEST_F(UpdateAttempterTest, SessionIdTestInDownloadAction) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::SessionIdTestInDownloadAction,
-                            base::Unretained(this)));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::SessionIdTestInDownloadAction,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -812,8 +815,8 @@ void UpdateAttempterTest::UpdateTestStart() {
 
   attempter_.Update({});
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::UpdateTestVerify,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::UpdateTestVerify,
+                                base::Unretained(this)));
 }
 
 void UpdateAttempterTest::UpdateTestVerify() {
@@ -870,8 +873,8 @@ void UpdateAttempterTest::RollbackTestStart(bool enterprise_rollback,
 
     EXPECT_TRUE(attempter_.Rollback(true));
     loop_.PostTask(FROM_HERE,
-                   base::Bind(&UpdateAttempterTest::RollbackTestVerify,
-                              base::Unretained(this)));
+                   base::BindOnce(&UpdateAttempterTest::RollbackTestVerify,
+                                  base::Unretained(this)));
   } else {
     EXPECT_FALSE(attempter_.Rollback(true));
     loop_.BreakLoop();
@@ -894,28 +897,28 @@ TEST_F(UpdateAttempterTest, UpdateTest) {
 
 TEST_F(UpdateAttempterTest, RollbackTest) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
-                            base::Unretained(this),
-                            false,
-                            true));
+                 base::BindOnce(&UpdateAttempterTest::RollbackTestStart,
+                                base::Unretained(this),
+                                false,
+                                true));
   loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, InvalidSlotRollbackTest) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
-                            base::Unretained(this),
-                            false,
-                            false));
+                 base::BindOnce(&UpdateAttempterTest::RollbackTestStart,
+                                base::Unretained(this),
+                                false,
+                                false));
   loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, EnterpriseRollbackTest) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::RollbackTestStart,
-                            base::Unretained(this),
-                            true,
-                            true));
+                 base::BindOnce(&UpdateAttempterTest::RollbackTestStart,
+                                base::Unretained(this),
+                                true,
+                                true));
   loop_.Run();
 }
 
@@ -935,8 +938,8 @@ TEST_F(UpdateAttempterTest, PingOmahaTest) {
   // testing, which is more permissive than we want to handle here.
   attempter_.DisableScheduleUpdates();
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::PingOmahaTestStart,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::PingOmahaTestStart,
+                                base::Unretained(this)));
   brillo::MessageLoopRunMaxIterations(&loop_, 100);
   EXPECT_EQ(UpdateStatus::UPDATED_NEED_REBOOT, attempter_.status());
   EXPECT_TRUE(attempter_.WasScheduleUpdatesCalled());
@@ -998,8 +1001,8 @@ TEST_F(UpdateAttempterTest, P2PStartedAtStartupWhenEnabledAndSharing) {
 
 TEST_F(UpdateAttempterTest, P2PNotEnabled) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::P2PNotEnabledStart,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::P2PNotEnabledStart,
+                                base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1017,9 +1020,10 @@ void UpdateAttempterTest::P2PNotEnabledStart() {
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabledStartingFails) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::P2PEnabledStartingFailsStart,
-                            base::Unretained(this)));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::P2PEnabledStartingFailsStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1041,8 +1045,8 @@ void UpdateAttempterTest::P2PEnabledStartingFailsStart() {
 TEST_F(UpdateAttempterTest, P2PEnabledHousekeepingFails) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempterTest::P2PEnabledHousekeepingFailsStart,
-                 base::Unretained(this)));
+      base::BindOnce(&UpdateAttempterTest::P2PEnabledHousekeepingFailsStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1063,8 +1067,8 @@ void UpdateAttempterTest::P2PEnabledHousekeepingFailsStart() {
 
 TEST_F(UpdateAttempterTest, P2PEnabled) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::P2PEnabledStart,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::P2PEnabledStart,
+                                base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1084,9 +1088,10 @@ void UpdateAttempterTest::P2PEnabledStart() {
 }
 
 TEST_F(UpdateAttempterTest, P2PEnabledInteractive) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::P2PEnabledInteractiveStart,
-                            base::Unretained(this)));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::P2PEnabledInteractiveStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1109,8 +1114,8 @@ void UpdateAttempterTest::P2PEnabledInteractiveStart() {
 TEST_F(UpdateAttempterTest, ReadScatterFactorFromPolicy) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart,
-                 base::Unretained(this)));
+      base::BindOnce(&UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1139,8 +1144,8 @@ void UpdateAttempterTest::ReadScatterFactorFromPolicyTestStart() {
 TEST_F(UpdateAttempterTest, DecrementUpdateCheckCountTest) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(&UpdateAttempterTest::DecrementUpdateCheckCountTestStart,
-                 base::Unretained(this)));
+      base::BindOnce(&UpdateAttempterTest::DecrementUpdateCheckCountTestStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1193,7 +1198,7 @@ void UpdateAttempterTest::DecrementUpdateCheckCountTestStart() {
 TEST_F(UpdateAttempterTest, NoScatteringDoneDuringManualUpdateTestStart) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           &UpdateAttempterTest::NoScatteringDoneDuringManualUpdateTestStart,
           base::Unretained(this)));
   loop_.Run();
@@ -1262,7 +1267,7 @@ void UpdateAttempterTest::SetUpStagingTest(const StagingSchedule& schedule) {
 TEST_F(UpdateAttempterTest, StagingSetsPrefsAndTurnsOffScattering) {
   loop_.PostTask(
       FROM_HERE,
-      base::Bind(
+      base::BindOnce(
           &UpdateAttempterTest::StagingSetsPrefsAndTurnsOffScatteringStart,
           base::Unretained(this)));
   loop_.Run();
@@ -1319,9 +1324,10 @@ void UpdateAttempterTest::CheckStagingOff() {
 }
 
 TEST_F(UpdateAttempterTest, StagingOffIfInteractive) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::StagingOffIfInteractiveStart,
-                            base::Unretained(this)));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::StagingOffIfInteractiveStart,
+                     base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1338,8 +1344,8 @@ void UpdateAttempterTest::StagingOffIfInteractiveStart() {
 
 TEST_F(UpdateAttempterTest, StagingOffIfOobe) {
   loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::StagingOffIfOobeStart,
-                            base::Unretained(this)));
+                 base::BindOnce(&UpdateAttempterTest::StagingOffIfOobeStart,
+                                base::Unretained(this)));
   loop_.Run();
 }
 
@@ -1823,32 +1829,35 @@ void UpdateAttempterTest::ResetRollbackHappenedStart(bool is_consumer,
 }
 
 TEST_F(UpdateAttempterTest, ResetRollbackHappenedOobe) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
-                            base::Unretained(this),
-                            /*is_consumer=*/false,
-                            /*is_policy_loaded=*/false,
-                            /*expected_reset=*/false));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                     base::Unretained(this),
+                     /*is_consumer=*/false,
+                     /*is_policy_loaded=*/false,
+                     /*expected_reset=*/false));
   loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, ResetRollbackHappenedConsumer) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
-                            base::Unretained(this),
-                            /*is_consumer=*/true,
-                            /*is_policy_loaded=*/false,
-                            /*expected_reset=*/true));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                     base::Unretained(this),
+                     /*is_consumer=*/true,
+                     /*is_policy_loaded=*/false,
+                     /*expected_reset=*/true));
   loop_.Run();
 }
 
 TEST_F(UpdateAttempterTest, ResetRollbackHappenedEnterprise) {
-  loop_.PostTask(FROM_HERE,
-                 base::Bind(&UpdateAttempterTest::ResetRollbackHappenedStart,
-                            base::Unretained(this),
-                            /*is_consumer=*/false,
-                            /*is_policy_loaded=*/true,
-                            /*expected_reset=*/true));
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(&UpdateAttempterTest::ResetRollbackHappenedStart,
+                     base::Unretained(this),
+                     /*is_consumer=*/false,
+                     /*is_policy_loaded=*/true,
+                     /*expected_reset=*/true));
   loop_.Run();
 }
 
