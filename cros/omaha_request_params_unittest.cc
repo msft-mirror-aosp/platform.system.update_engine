@@ -118,6 +118,30 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
   EXPECT_FALSE(params_.mutable_image_props_.is_powerwash_allowed);
 }
 
+TEST_F(OmahaRequestParamsTest, SetTargetCommercialChannelTest) {
+  {
+    OmahaRequestParams params;
+    params.set_root(tempdir_.GetPath().value());
+    EXPECT_TRUE(params.Init("", "", {}));
+    EXPECT_TRUE(params.SetTargetChannel("ltc-channel", false, nullptr));
+  }
+  params_.set_root(tempdir_.GetPath().value());
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ("stable-channel", params_.target_channel());
+}
+
+TEST_F(OmahaRequestParamsTest, SetCommercialChannelUsingParamTest) {
+  {
+    OmahaRequestParams params;
+    params.set_root(tempdir_.GetPath().value());
+    EXPECT_TRUE(params.Init("", "", {}));
+    EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  }
+  params_.set_root(tempdir_.GetPath().value());
+  EXPECT_TRUE(params_.Init("", "", {.target_channel = "ltc-channel"}));
+  EXPECT_EQ("ltc-channel", params_.target_channel());
+}
+
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
   {
     OmahaRequestParams params;
@@ -301,6 +325,13 @@ TEST_F(OmahaRequestParamsTest, MiniOsParams) {
   EXPECT_TRUE(params_.Init("", "", {}));
   EXPECT_FALSE(params_.delta_okay());
   EXPECT_EQ(kNoVersion, params_.app_version());
+}
+
+TEST_F(OmahaRequestParamsTest, IsCommercialChannel) {
+  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel("lts-channel"));
+  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel("ltc-channel"));
+  EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel("stable-channel"));
+  EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel("foo-channel"));
 }
 
 }  // namespace chromeos_update_engine

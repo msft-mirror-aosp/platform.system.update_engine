@@ -320,6 +320,10 @@ class OmahaRequestParams {
   // autoupdate server or the autoupdate autotest server.
   virtual bool IsUpdateUrlOfficial() const;
 
+  // IsCommercialChannel returns true if `channel` is a channel only supported
+  // on enrolled devices.
+  static bool IsCommercialChannel(const std::string& channel);
+
   // For unit-tests.
   void set_root(const std::string& root);
   void set_current_channel(const std::string& channel) {

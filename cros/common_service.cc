@@ -208,6 +208,12 @@ bool UpdateEngineService::SetChannel(ErrorPtr* error,
     return false;
   }
 
+  if (OmahaRequestParams::IsCommercialChannel(in_target_channel)) {
+    LogAndSetError(
+        error, FROM_HERE, "Cannot set a commercial channel explicitly");
+    return false;
+  }
+
   LOG(INFO) << "Setting destination channel to: " << in_target_channel;
   string error_message;
   if (!SystemState::Get()->request_params()->SetTargetChannel(

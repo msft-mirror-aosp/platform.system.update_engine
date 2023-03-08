@@ -163,6 +163,26 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
                                UpdateEngineService::kErrorFailed));
 }
 
+// When passing lts channel, an error should be raised.
+TEST_F(UpdateEngineServiceTest, SetChannelWithCommercialChannelLts) {
+  EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
+
+  EXPECT_FALSE(common_service_.SetChannel(&error_, "lts-channel", true));
+  ASSERT_NE(nullptr, error_);
+  EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
+                               UpdateEngineService::kErrorFailed));
+}
+
+// When passing ltc only channel, an error should be raised.
+TEST_F(UpdateEngineServiceTest, SetChannelWithCommercialChannelLtc) {
+  EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
+
+  EXPECT_FALSE(common_service_.SetChannel(&error_, "ltc-channel", true));
+  ASSERT_NE(nullptr, error_);
+  EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
+                               UpdateEngineService::kErrorFailed));
+}
+
 TEST_F(UpdateEngineServiceTest, GetChannel) {
   FakeSystemState::Get()->mock_request_params()->set_current_channel("current");
   FakeSystemState::Get()->mock_request_params()->set_target_channel("target");
