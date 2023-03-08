@@ -175,14 +175,16 @@ bool PayloadVerifier::VerifyRawSignature(
     }
 
     if (key_type == EVP_PKEY_EC) {
-      EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.get());
+      EC_KEY* ec_key = EVP_PKEY_get1_EC_KEY(public_key.get());
       TEST_AND_RETURN_FALSE(ec_key != nullptr);
-      if (ECDSA_verify(0,
-                       sha256_hash_data.data(),
-                       sha256_hash_data.size(),
-                       sig_data.data(),
-                       sig_data.size(),
-                       ec_key) == 1) {
+      int result = ECDSA_verify(0,
+                                sha256_hash_data.data(),
+                                sha256_hash_data.size(),
+                                sig_data.data(),
+                                sig_data.size(),
+                                ec_key);
+      EC_KEY_free(ec_key);
+      if (result == 1) {
         return true;
       }
     }
@@ -203,12 +205,13 @@ bool PayloadVerifier::GetRawHashFromSignature(
   //
   // openssl rsautl -verify -pubin -inkey <(echo pem_public_key)
   //   -in |sig_data| -out |out_hash_data|
-  RSA* rsa = EVP_PKEY_get0_RSA(const_cast<EVP_PKEY*>(public_key));
+  RSA* rsa = EVP_PKEY_get1_RSA(const_cast<EVP_PKEY*>(public_key));
 
   TEST_AND_RETURN_FALSE(rsa != nullptr);
   unsigned int keysize = RSA_size(rsa);
   if (sig_data.size() > 2 * keysize) {
     LOG(ERROR) << "Signature size is too big for public key size.";
+    RSA_free(rsa);
     return false;
   }
 
@@ -216,6 +219,7 @@ bool PayloadVerifier::GetRawHashFromSignature(
   brillo::Blob hash_data(keysize);
   int decrypt_size = RSA_public_decrypt(
       sig_data.size(), sig_data.data(), hash_data.data(), rsa, RSA_NO_PADDING);
+  RSA_free(rsa);
   TEST_AND_RETURN_FALSE(decrypt_size > 0 &&
                         decrypt_size <= static_cast<int>(hash_data.size()));
   hash_data.resize(decrypt_size);

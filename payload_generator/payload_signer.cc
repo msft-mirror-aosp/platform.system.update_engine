@@ -309,7 +309,7 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
   int key_type = EVP_PKEY_id(private_key.get());
   brillo::Blob signature;
   if (key_type == EVP_PKEY_RSA) {
-    RSA* rsa = EVP_PKEY_get0_RSA(private_key.get());
+    RSA* rsa = EVP_PKEY_get1_RSA(private_key.get());
     TEST_AND_RETURN_FALSE(rsa != nullptr);
 
     brillo::Blob padded_hash = hash;
@@ -321,6 +321,7 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
                                                  signature.data(),
                                                  rsa,
                                                  RSA_NO_PADDING);
+    RSA_free(rsa);
     if (signature_size < 0) {
       LOG(ERROR) << "Signing hash failed: "
                  << ERR_error_string(ERR_get_error(), nullptr);
@@ -329,17 +330,15 @@ bool PayloadSigner::SignHash(const brillo::Blob& hash,
     TEST_AND_RETURN_FALSE(static_cast<size_t>(signature_size) ==
                           signature.size());
   } else if (key_type == EVP_PKEY_EC) {
-    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(private_key.get());
+    EC_KEY* ec_key = EVP_PKEY_get1_EC_KEY(private_key.get());
     TEST_AND_RETURN_FALSE(ec_key != nullptr);
 
     signature.resize(ECDSA_size(ec_key));
     unsigned int signature_size;
-    if (ECDSA_sign(0,
-                   hash.data(),
-                   hash.size(),
-                   signature.data(),
-                   &signature_size,
-                   ec_key) != 1) {
+    int result = ECDSA_sign(
+        0, hash.data(), hash.size(), signature.data(), &signature_size, ec_key);
+    EC_KEY_free(ec_key);
+    if (result != 1) {
       LOG(ERROR) << "Signing hash failed: "
                  << ERR_error_string(ERR_get_error(), nullptr);
       return false;
