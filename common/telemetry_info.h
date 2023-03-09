@@ -107,9 +107,12 @@ typedef struct TelemetryInfo {
 
   std::string GetWirelessDrivers() const;
   std::string GetWirelessIds() const;
+  std::string GetGpuDrivers() const;
   std::string GetGpuIds() const;
 
  private:
+  std::string GetBusDeviceDrivers(
+      BusDevice::BusDeviceClass bus_device_class) const;
   std::string GetBusDeviceIds(BusDevice::BusDeviceClass bus_device_class) const;
 } TelemetryInfo;
 

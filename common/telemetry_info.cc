@@ -23,27 +23,35 @@
 namespace chromeos_update_engine {
 
 std::string TelemetryInfo::GetWirelessDrivers() const {
-  std::vector<std::string> wireless_drivers;
-  for (const auto& bus_device : bus_devices) {
-    if (bus_device.device_class !=
-        BusDevice::BusDeviceClass::kWirelessController)
-      continue;
-    if (const auto* pci_bus_info =
-            std::get_if<BusDevice::PciBusInfo>(&bus_device.bus_type_info)) {
-      const auto& driver = pci_bus_info->driver;
-      if (!driver.empty())
-        wireless_drivers.push_back(driver);
-    }
-  }
-  return base::JoinString(wireless_drivers, " ");
+  return GetBusDeviceDrivers(BusDevice::BusDeviceClass::kWirelessController);
 }
 
 std::string TelemetryInfo::GetWirelessIds() const {
   return GetBusDeviceIds(BusDevice::BusDeviceClass::kWirelessController);
 }
 
+std::string TelemetryInfo::GetGpuDrivers() const {
+  return GetBusDeviceDrivers(BusDevice::BusDeviceClass::kDisplayController);
+}
+
 std::string TelemetryInfo::GetGpuIds() const {
   return GetBusDeviceIds(BusDevice::BusDeviceClass::kDisplayController);
+}
+
+std::string TelemetryInfo::GetBusDeviceDrivers(
+    BusDevice::BusDeviceClass bus_device_class) const {
+  std::vector<std::string> drivers;
+  for (const auto& bus_device : bus_devices) {
+    if (bus_device.device_class != bus_device_class)
+      continue;
+    if (const auto* pci_bus_info =
+            std::get_if<BusDevice::PciBusInfo>(&bus_device.bus_type_info)) {
+      const auto& driver = pci_bus_info->driver;
+      if (!driver.empty())
+        drivers.push_back(driver);
+    }
+  }
+  return base::JoinString(drivers, " ");
 }
 
 std::string TelemetryInfo::GetBusDeviceIds(

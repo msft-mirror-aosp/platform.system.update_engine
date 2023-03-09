@@ -543,6 +543,7 @@ string OmahaRequestBuilderXml::GetHw() const {
       " cpu_name=\"%s\""
       " wireless_drivers=\"%s\""
       " wireless_ids=\"%s\""
+      " gpu_drivers=\"%s\""
       " gpu_ids=\"%s\""
       " />\n",
       XmlEncodeWithDefault(telemetry_info->system_info.dmi_info.sys_vendor)
@@ -571,6 +572,7 @@ string OmahaRequestBuilderXml::GetHw() const {
           .c_str(),
       XmlEncodeWithDefault(telemetry_info->GetWirelessDrivers()).c_str(),
       XmlEncodeWithDefault(telemetry_info->GetWirelessIds()).c_str(),
+      XmlEncodeWithDefault(telemetry_info->GetGpuDrivers()).c_str(),
       XmlEncodeWithDefault(telemetry_info->GetGpuIds()).c_str());
   return hw_xml;
 }

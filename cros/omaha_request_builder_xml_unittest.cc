@@ -602,6 +602,7 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
                                    " cpu_name=\"%s\""
                                    " wireless_drivers=\"%s\""
                                    " wireless_ids=\"%s\""
+                                   " gpu_drivers=\"%s\""
                                    " gpu_ids=\"%s\""
                                    " />\n",
                                    sys_vendor.c_str(),
@@ -614,7 +615,151 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheck) {
                                    model_name.c_str(),
                                    "fake-driver-1",
                                    "0001:0002 0003:0004",
+                                   "fake-driver-2",
                                    "0005:0006 00AA:1111")))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheckMultipleGpuDrivers) {
+  params_.set_hw_details(true);
+
+  const string sys_vendor = "fake-sys-vendor",
+               product_name = "fake-product-name",
+               product_version = "fake-product-version",
+               bios_version = "fake-bios-version",
+               model_name = "fake-model-name";
+  auto boot_mode = TelemetryInfo::SystemInfo::OsInfo::BootMode::kCrosEfi;
+  uint32_t total_memory_kib = 123;
+  uint64_t size = 456;
+
+  FakeSystemState::Get()
+      ->fake_cros_healthd()
+      ->telemetry_info() = std::make_unique<TelemetryInfo>(TelemetryInfo{
+      .system_info =
+          // NOLINTNEXTLINE(whitespace/braces)
+      {
+          .dmi_info =
+              // NOLINTNEXTLINE(whitespace/braces)
+          {
+              .sys_vendor = sys_vendor,
+              .product_name = product_name,
+              .product_version = product_version,
+              .bios_version = bios_version,
+          },
+          .os_info =
+              // NOLINTNEXTLINE(whitespace/braces)
+          {
+              .boot_mode = boot_mode,
+          },
+      },
+      .memory_info =
+          // NOLINTNEXTLINE(whitespace/braces)
+      {
+          .total_memory_kib = total_memory_kib,
+      },
+      .block_device_info =
+          // NOLINTNEXTLINE(whitespace/braces)
+      {
+          {
+              .size = size,
+          },
+      },
+      .cpu_info =
+          // NOLINTNEXTLINE(whitespace/braces)
+      {
+          .physical_cpus =
+              // NOLINTNEXTLINE(whitespace/braces)
+          {
+              {
+                  .model_name = model_name,
+              },
+          },
+      },
+      .bus_devices =
+          // NOLINTNEXTLINE(whitespace/braces)
+      {
+          {
+              .device_class =
+                  TelemetryInfo::BusDevice::BusDeviceClass::kWirelessController,
+              .bus_type_info =
+                  TelemetryInfo::BusDevice::PciBusInfo{
+                      .vendor_id = 0x0001,
+                      .device_id = 0x0002,
+                      .driver = "fake-driver-1",
+                  },
+          },
+          {
+              .device_class =
+                  TelemetryInfo::BusDevice::BusDeviceClass::kWirelessController,
+              .bus_type_info =
+                  TelemetryInfo::BusDevice::UsbBusInfo{
+                      .vendor_id = 0x0003,
+                      .product_id = 0x0004,
+                  },
+          },
+          {
+              .device_class =
+                  TelemetryInfo::BusDevice::BusDeviceClass::kDisplayController,
+              .bus_type_info =
+                  TelemetryInfo::BusDevice::PciBusInfo{
+                      .vendor_id = 0x0005,
+                      .device_id = 0x0006,
+                      .driver = "fake-driver-2",
+                  },
+          },
+          {
+              .device_class =
+                  TelemetryInfo::BusDevice::BusDeviceClass::kDisplayController,
+              .bus_type_info =
+                  TelemetryInfo::BusDevice::PciBusInfo{
+                      .vendor_id = 0xDEAD,
+                      .device_id = 0xBEEF,
+                      .driver = "fake-driver-3",
+                  },
+          },
+          {
+              .device_class =
+                  TelemetryInfo::BusDevice::BusDeviceClass::kDisplayController,
+              .bus_type_info =
+                  TelemetryInfo::BusDevice::UsbBusInfo{
+                      .vendor_id = 0x00AA,
+                      .product_id = 0x1111,
+                  },
+          },
+      },
+  });
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1,
+            CountSubstringInString(
+                request_xml,
+                base::StringPrintf("    <hw"
+                                   " vendor_name=\"%s\""
+                                   " product_name=\"%s\""
+                                   " product_version=\"%s\""
+                                   " bios_version=\"%s\""
+                                   " uefi=\"%" PRId32 "\""
+                                   " system_memory_bytes=\"%" PRIu32 "\""
+                                   " root_disk_drive=\"%" PRIu64 "\""
+                                   " cpu_name=\"%s\""
+                                   " wireless_drivers=\"%s\""
+                                   " wireless_ids=\"%s\""
+                                   " gpu_drivers=\"%s\""
+                                   " gpu_ids=\"%s\""
+                                   " />\n",
+                                   sys_vendor.c_str(),
+                                   product_name.c_str(),
+                                   product_version.c_str(),
+                                   bios_version.c_str(),
+                                   static_cast<int32_t>(boot_mode),
+                                   total_memory_kib,
+                                   size,
+                                   model_name.c_str(),
+                                   "fake-driver-1",
+                                   "0001:0002 0003:0004",
+                                   "fake-driver-2 fake-driver-3",
+                                   "0005:0006 DEAD:BEEF 00AA:1111")))
       << request_xml;
 }
 
@@ -636,6 +781,7 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheckMissingCrosHealthd) {
                                    " cpu_name=\"\""
                                    " wireless_drivers=\"\""
                                    " wireless_ids=\"\""
+                                   " gpu_drivers=\"\""
                                    " gpu_ids=\"\""
                                    " />\n"))
       << request_xml;
