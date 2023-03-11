@@ -307,4 +307,28 @@ TEST_F(UmUpdateCheckAllowedPolicyTest, UpdateCheckAllowedConsumerDisabled) {
   EXPECT_FALSE(uca_data_->update_check_params.interactive);
 }
 
+TEST_F(UmUpdateCheckAllowedPolicyTest,
+       UpdateCheckAllowedInstallationsWhenBootedFromNonABSlots) {
+  // Even if there aren't enough slots, an installation should fall through.
+  // NOLINTNEXTLINE(readability/casting)
+  fake_state_.system_provider()->var_num_slots()->reset(new unsigned int(1));
+  fake_state_.system_provider()->var_is_updating()->reset(new bool(false));
+
+  EXPECT_EQ(EvalStatus::kSucceeded, evaluator_->Evaluate());
+  EXPECT_TRUE(uca_data_->update_check_params.updates_enabled);
+}
+
+TEST_F(UmUpdateCheckAllowedPolicyTest,
+       UpdateCheckAllowedInstallationsWhenEntDisablesUpdates) {
+  // Even if device policy blocks updates, an installation should fall through.
+  fake_state_.system_provider()->var_is_updating()->reset(new bool(false));
+
+  SetUpdateCheckAllowed(false);
+  fake_state_.device_policy_provider()->var_update_disabled()->reset(
+      new bool(true));
+
+  EXPECT_EQ(EvalStatus::kSucceeded, evaluator_->Evaluate());
+  EXPECT_TRUE(uca_data_->update_check_params.updates_enabled);
+}
+
 }  // namespace chromeos_update_manager

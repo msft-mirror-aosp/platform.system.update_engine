@@ -221,6 +221,7 @@ static_library("libupdate_engine") {
     "update_manager/enterprise_device_policy_impl.cc",
     "update_manager/enterprise_rollback_policy_impl.cc",
     "update_manager/evaluation_context.cc",
+    "update_manager/installation_policy_impl.cc",
     "update_manager/interactive_update_policy_impl.cc",
     "update_manager/minimum_version_policy_impl.cc",
     "update_manager/next_update_check_policy_impl.cc",

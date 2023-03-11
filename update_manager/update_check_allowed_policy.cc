@@ -23,6 +23,7 @@
 #include "update_engine/common/system_state.h"
 #include "update_engine/update_manager/enough_slots_ab_updates_policy_impl.h"
 #include "update_engine/update_manager/enterprise_device_policy_impl.h"
+#include "update_engine/update_manager/installation_policy_impl.h"
 #include "update_engine/update_manager/interactive_update_policy_impl.h"
 #include "update_engine/update_manager/minimum_version_policy_impl.h"
 #include "update_engine/update_manager/next_update_check_policy_impl.h"
@@ -63,6 +64,7 @@ EvalStatus UpdateCheckAllowedPolicy::Evaluate(EvaluationContext* ec,
   result->rollback_on_channel_downgrade = false;
   result->interactive = false;
 
+  InstallationPolicyImpl installation_policy;
   RecoveryPolicy recovery_policy;
   EnoughSlotsAbUpdatesPolicyImpl enough_slots_ab_updates_policy;
   EnterpriseDevicePolicyImpl enterprise_device_policy;
@@ -75,6 +77,9 @@ EvalStatus UpdateCheckAllowedPolicy::Evaluate(EvaluationContext* ec,
   vector<PolicyInterface* const> policies_to_consult = {
       // Don't update when resuming from hibernate.
       &hibernate_resume_policy,
+
+      // If this is an installation, allow performing.
+      &installation_policy,
 
       // If in recovery mode, always check for update.
       &recovery_policy,
