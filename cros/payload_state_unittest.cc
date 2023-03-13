@@ -19,6 +19,7 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/test/mock_log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -41,6 +42,7 @@ using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
 using testing::DoAll;
+using testing::HasSubstr;
 using testing::Mock;
 using testing::NiceMock;
 using testing::Return;
@@ -1241,6 +1243,36 @@ TEST_F(PayloadStateTest, CandidateUrlsMissingErrorNotReportedForSuccessCode) {
               ReportInternalErrorCode(error))
       .Times(0);
   payload_state.UpdateFailed(error);
+}
+
+TEST_F(PayloadStateTest, ErrorsGenerateAlerts) {
+  base::test::MockLog mock_log;
+  mock_log.StartCapturingLogs();
+  EXPECT_CALL(mock_log, Log(_, _, _, _, _)).Times(AnyNumber());
+
+  PayloadState payload_state;
+  EXPECT_TRUE(payload_state.Initialize());
+  OmahaResponse response;
+  SetupPayloadStateWith2Urls(
+      "Hash1235", true, false, &payload_state, &response);
+
+  EXPECT_CALL(
+      mock_log,
+      Log(::logging::LOGGING_ERROR, _, _, _, HasSubstr("UpdateEngineAlert")));
+  payload_state.UpdateFailed(ErrorCode::kPayloadHashMismatchError);
+}
+
+TEST_F(PayloadStateTest, ErrorsGenerateAlertsWithoutAnyCandidateUrls) {
+  base::test::MockLog mock_log;
+  mock_log.StartCapturingLogs();
+  EXPECT_CALL(mock_log, Log(_, _, _, _, _)).Times(AnyNumber());
+
+  PayloadState payload_state;
+
+  EXPECT_CALL(
+      mock_log,
+      Log(::logging::LOGGING_ERROR, _, _, _, HasSubstr("UpdateEngineAlert")));
+  payload_state.UpdateFailed(ErrorCode::kPayloadHashMismatchError);
 }
 
 TEST_F(PayloadStateTest, CandidateUrlsComputedCorrectly) {

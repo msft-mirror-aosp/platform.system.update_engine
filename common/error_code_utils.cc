@@ -16,6 +16,7 @@
 
 #include "update_engine/common/error_code_utils.h"
 
+#include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 
 using std::string;
@@ -23,15 +24,34 @@ using std::string;
 namespace chromeos_update_engine {
 namespace utils {
 
-string ErrorCodeToString(ErrorCode code) {
+const char kCategoryPayload[] = "payload";
+const char kCategoryDownload[] = "download";
+const char kCategoryVerity[] = "verity";
+
+// Error detail of alert, note that all phrases here are negative.
+const char kErrorMismatch[] = "mismatch";
+const char kErrorVerification[] = "verification failed";
+const char kErrorVersion[] = "unsupported version";
+const char kErrorTimestamp[] = "timestamp error";
+const char kErrorSignature[] = "signature error";
+const char kErrorManifest[] = "manifest error";
+
+namespace {
+ErrorCode StripErrorCode(ErrorCode code) {
   // If the given code has both parts (i.e. the error code part and the flags
-  // part) then strip off the flags part since the switch statement below
-  // has case statements only for the base error code or a single flag but
-  // doesn't support any combinations of those.
+  // part) then strip off the flags part since the switch statements below
+  // have case statements only for the base error code or a single flag but
+  // don't support any combinations of those.
   if ((static_cast<int>(code) & static_cast<int>(ErrorCode::kSpecialFlags)) &&
       (static_cast<int>(code) & ~static_cast<int>(ErrorCode::kSpecialFlags)))
     code = static_cast<ErrorCode>(static_cast<int>(code) &
                                   ~static_cast<int>(ErrorCode::kSpecialFlags));
+  return code;
+}
+}  // namespace
+
+string ErrorCodeToString(ErrorCode code) {
+  code = StripErrorCode(code);
   switch (code) {
     case ErrorCode::kSuccess:
       return "ErrorCode::kSuccess";
@@ -194,5 +214,53 @@ string ErrorCodeToString(ErrorCode code) {
   return "Unknown error: " + base::NumberToString(static_cast<unsigned>(code));
 }
 
+void LogAlertTag(ErrorCode code) {
+  code = StripErrorCode(code);
+  switch (code) {
+    case ErrorCode::kPayloadHashMismatchError:
+    case ErrorCode::kPayloadSizeMismatchError:
+    case ErrorCode::kPayloadMismatchedType:
+      LOG(ERROR) << GenerateAlertTag(kCategoryPayload, kErrorMismatch);
+      return;
+    case ErrorCode::kSignedDeltaPayloadExpectedError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryPayload, kErrorVerification);
+      return;
+    case ErrorCode::kUnsupportedMajorPayloadVersion:
+    case ErrorCode::kUnsupportedMinorPayloadVersion:
+      LOG(ERROR) << GenerateAlertTag(kCategoryPayload, kErrorVersion);
+      return;
+    case ErrorCode::kPayloadTimestampError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryPayload, kErrorTimestamp);
+      return;
+    case ErrorCode::kDownloadInvalidMetadataMagicString:
+    case ErrorCode::kDownloadMetadataSignatureError:
+    case ErrorCode::kDownloadMetadataSignatureVerificationError:
+    case ErrorCode::kDownloadInvalidMetadataSignature:
+    case ErrorCode::kDownloadMetadataSignatureMismatch:
+    case ErrorCode::kDownloadMetadataSignatureMissingError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryDownload, kErrorSignature);
+      return;
+    case ErrorCode::kDownloadOperationHashVerificationError:
+    case ErrorCode::kDownloadOperationHashMismatch:
+    case ErrorCode::kDownloadOperationHashMissingError:
+    case ErrorCode::kDownloadInvalidMetadataSize:
+    case ErrorCode::kDownloadPayloadVerificationError:
+    case ErrorCode::kDownloadPayloadPubKeyVerificationError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryDownload, kErrorVerification);
+      return;
+    case ErrorCode::kDownloadSignatureMissingInManifest:
+    case ErrorCode::kDownloadManifestParseError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryDownload, kErrorManifest);
+      return;
+    case ErrorCode::kDownloadOperationExecutionError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryDownload);
+      return;
+    case ErrorCode::kVerityCalculationError:
+      LOG(ERROR) << GenerateAlertTag(kCategoryVerity);
+      return;
+    default:
+      return;
+  }
+}
 }  // namespace utils
 }  // namespace chromeos_update_engine

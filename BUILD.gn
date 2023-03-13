@@ -497,6 +497,7 @@ if (use.test) {
       "common/action_processor_unittest.cc",
       "common/action_unittest.cc",
       "common/cpu_limiter_unittest.cc",
+      "common/error_code_utils_unittest.cc",
       "common/hash_calculator_unittest.cc",
       "common/http_fetcher_unittest.cc",
       "common/hwid_override_unittest.cc",

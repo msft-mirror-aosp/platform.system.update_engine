@@ -262,6 +262,8 @@ void PayloadState::UpdateFailed(ErrorCode error) {
   ErrorCode base_error = utils::GetBaseErrorCode(error);
   const std::string base_error_str = utils::ErrorCodeToString(base_error);
 
+  utils::LogAlertTag(base_error);
+
   LOG(INFO) << "Updating payload state for error code: " << base_error << " ("
             << base_error_str << ")";
 
