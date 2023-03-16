@@ -46,8 +46,6 @@ enum class DeferUpdateAction {
 };
 
 struct InstallPlan {
-  InstallPlan() = default;
-
   bool operator==(const InstallPlan& that) const;
   bool operator!=(const InstallPlan& that) const;
 
