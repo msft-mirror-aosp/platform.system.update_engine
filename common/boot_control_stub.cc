@@ -76,7 +76,7 @@ bool BootControlStub::MarkBootSuccessful() {
 }
 
 bool BootControlStub::MarkBootSuccessfulAsync(
-    base::Callback<void(bool)> callback) {
+    base::OnceCallback<void(bool)> callback) {
   // This is expected to be called on update_engine startup.
   return false;
 }

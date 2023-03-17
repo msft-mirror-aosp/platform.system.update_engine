@@ -210,8 +210,8 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
       command,
       Subprocess::kRedirectStderrToStdout,
       {kPostinstallStatusFd},
-      base::Bind(&PostinstallRunnerAction::CompletePartitionPostinstall,
-                 base::Unretained(this)));
+      base::BindOnce(&PostinstallRunnerAction::CompletePartitionPostinstall,
+                     base::Unretained(this)));
   // Subprocess::Exec should never return a negative process id.
   CHECK_GE(current_command_, 0);
 

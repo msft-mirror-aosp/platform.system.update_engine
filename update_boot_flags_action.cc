@@ -49,8 +49,8 @@ void UpdateBootFlagsAction::PerformAction() {
   is_running_ = true;
   LOG(INFO) << "Marking booted slot as good.";
   if (!boot_control_->MarkBootSuccessfulAsync(
-          base::Bind(&UpdateBootFlagsAction::CompleteUpdateBootFlags,
-                     base::Unretained(this)))) {
+          base::BindOnce(&UpdateBootFlagsAction::CompleteUpdateBootFlags,
+                         base::Unretained(this)))) {
     CompleteUpdateBootFlags(false);
   }
 }

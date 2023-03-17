@@ -88,10 +88,10 @@ string GetBootDevice() {
 // ExecCallback called when the execution of setgoodkernel finishes. Notifies
 // the caller of MarkBootSuccessfullAsync() by calling |callback| with the
 // result.
-void OnMarkBootSuccessfulDone(base::Callback<void(bool)> callback,
+void OnMarkBootSuccessfulDone(base::OnceCallback<void(bool)> callback,
                               int return_code,
                               const string& output) {
-  callback.Run(return_code == 0);
+  std::move(callback).Run(return_code == 0);
 }
 
 // Will return the partition corresponding to slot B to update into Slot A.
@@ -412,10 +412,10 @@ bool BootControlChromeOS::MarkBootSuccessful() {
 }
 
 bool BootControlChromeOS::MarkBootSuccessfulAsync(
-    base::Callback<void(bool)> callback) {
-  return Subprocess::Get().Exec(
-             {kSetGoodKernel},
-             base::Bind(&OnMarkBootSuccessfulDone, callback)) != 0;
+    base::OnceCallback<void(bool)> callback) {
+  return Subprocess::Get().Exec({kSetGoodKernel},
+                                base::BindOnce(&OnMarkBootSuccessfulDone,
+                                               std::move(callback))) != 0;
 }
 
 // static

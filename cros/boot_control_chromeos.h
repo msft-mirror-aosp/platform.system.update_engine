@@ -63,7 +63,8 @@ class BootControlChromeOS : public BootControlInterface {
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
   bool MarkBootSuccessful() override;
-  bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override;
+  bool MarkBootSuccessfulAsync(
+      base::OnceCallback<void(bool)> callback) override;
   bool IsSlotMarkedSuccessful(BootControlInterface::Slot slot) const override;
   DynamicPartitionControlInterface* GetDynamicPartitionControl() override;
   bool GetMiniOSKernelConfig(std::string* configs) override;

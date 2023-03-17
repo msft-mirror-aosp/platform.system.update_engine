@@ -104,7 +104,8 @@ class BootControlInterface {
   // flags are modified. Returns false if it was not able to schedule the
   // operation, otherwise, returns true and calls the |callback| with the result
   // of the operation.
-  virtual bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) = 0;
+  virtual bool MarkBootSuccessfulAsync(
+      base::OnceCallback<void(bool)> callback) = 0;
 
   // Check if |slot| is marked boot successfully.
   virtual bool IsSlotMarkedSuccessful(Slot slot) const = 0;

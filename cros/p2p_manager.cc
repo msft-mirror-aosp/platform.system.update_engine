@@ -58,7 +58,6 @@
 #include "update_engine/update_manager/update_manager.h"
 
 using base::Bind;
-using base::Callback;
 using base::FilePath;
 using base::StringPrintf;
 using base::Time;
@@ -395,7 +394,7 @@ class LookupData {
         cmd,
         Subprocess::kSearchPath,
         {},
-        Bind(&LookupData::OnLookupDone, base::Unretained(this)));
+        base::BindOnce(&LookupData::OnLookupDone, base::Unretained(this)));
 
     if (!child_pid_) {
       LOG(ERROR) << "Error spawning " << utils::StringVectorToString(cmd);

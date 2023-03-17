@@ -161,7 +161,7 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
     LOG(INFO) << "Subprocess output:\n" << record->stdout;
   }
   if (!record->callback.is_null()) {
-    record->callback.Run(info.si_status, record->stdout);
+    std::move(record->callback).Run(info.si_status, record->stdout);
   }
   // Release and close all the pipes after calling the callback so our
   // redirected pipes are still alive. Releasing the process first makes
@@ -173,16 +173,16 @@ void Subprocess::ChildExitedCallback(const siginfo_t& info) {
   subprocess_records_.erase(pid_record);
 }
 
-pid_t Subprocess::Exec(const vector<string>& cmd,
-                       const ExecCallback& callback) {
-  return ExecFlags(cmd, kRedirectStderrToStdout, {}, callback);
+pid_t Subprocess::Exec(const vector<string>& cmd, ExecCallback callback) {
+  return ExecFlags(cmd, kRedirectStderrToStdout, {}, std::move(callback));
 }
 
 pid_t Subprocess::ExecFlags(const vector<string>& cmd,
                             uint32_t flags,
                             const vector<int>& output_pipes,
-                            const ExecCallback& callback) {
-  unique_ptr<SubprocessRecord> record(new SubprocessRecord(callback));
+                            ExecCallback callback) {
+  unique_ptr<SubprocessRecord> record(
+      new SubprocessRecord(std::move(callback)));
 
   if (!LaunchProcess(cmd, flags, output_pipes, &record->proc)) {
     LOG(ERROR) << "Failed to launch subprocess";

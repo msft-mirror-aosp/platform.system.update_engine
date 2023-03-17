@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <base/time/time.h>
@@ -92,11 +93,12 @@ class FakeBootControl : public BootControlInterface {
     return true;
   }
 
-  bool MarkBootSuccessfulAsync(base::Callback<void(bool)> callback) override {
+  bool MarkBootSuccessfulAsync(
+      base::OnceCallback<void(bool)> callback) override {
     // We run the callback directly from here to avoid having to setup a message
     // loop in the test environment.
     is_marked_successful_[GetCurrentSlot()] = true;
-    callback.Run(true);
+    std::move(callback).Run(true);
     return true;
   }
 
