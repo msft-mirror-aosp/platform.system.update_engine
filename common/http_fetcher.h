@@ -76,8 +76,7 @@ class HttpFetcher {
   void SetPostData(const void* data, size_t size);
 
   // Proxy methods to set the proxies, then to pop them off.
-  void ResolveProxiesForUrl(const std::string& url,
-                            const base::Closure& callback);
+  void ResolveProxiesForUrl(const std::string& url, base::OnceClosure callback);
 
   void SetProxies(const std::deque<std::string>& proxies) {
     proxies_ = proxies;
@@ -184,7 +183,7 @@ class HttpFetcher {
       brillo::MessageLoop::kTaskIdNull};
 
   // Callback for when we are resolving proxies
-  std::unique_ptr<base::Closure> callback_;
+  std::unique_ptr<base::OnceClosure> callback_;
 
  private:
   // Callback from the proxy resolver

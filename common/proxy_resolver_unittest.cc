@@ -18,6 +18,7 @@
 
 #include <deque>
 #include <string>
+#include <utility>
 
 #include <base/functional/bind.h>
 #include <brillo/message_loops/fake_message_loop.h>
@@ -43,7 +44,7 @@ class ProxyResolverTest : public ::testing::Test {
 TEST_F(ProxyResolverTest, DirectProxyResolverCallbackTest) {
   bool called = false;
   deque<string> callback_proxies;
-  auto callback = base::Bind(
+  auto callback = base::BindOnce(
       [](bool* called,
          deque<string>* callback_proxies,
          const deque<string>& proxies) {
@@ -54,7 +55,7 @@ TEST_F(ProxyResolverTest, DirectProxyResolverCallbackTest) {
       &callback_proxies);
 
   EXPECT_NE(kProxyRequestIdNull,
-            resolver_.GetProxiesForUrl("http://foo", callback));
+            resolver_.GetProxiesForUrl("http://foo", std::move(callback)));
   // Check the callback is not called until the message loop runs.
   EXPECT_FALSE(called);
   loop_.Run();
@@ -64,11 +65,12 @@ TEST_F(ProxyResolverTest, DirectProxyResolverCallbackTest) {
 
 TEST_F(ProxyResolverTest, DirectProxyResolverCancelCallbackTest) {
   bool called = false;
-  auto callback = base::Bind(
+  auto callback = base::BindOnce(
       [](bool* called, const deque<string>& proxies) { *called = true; },
       &called);
 
-  ProxyRequestId request = resolver_.GetProxiesForUrl("http://foo", callback);
+  ProxyRequestId request =
+      resolver_.GetProxiesForUrl("http://foo", std::move(callback));
   EXPECT_FALSE(called);
   EXPECT_TRUE(resolver_.CancelProxyRequest(request));
   loop_.Run();
@@ -77,7 +79,7 @@ TEST_F(ProxyResolverTest, DirectProxyResolverCancelCallbackTest) {
 
 TEST_F(ProxyResolverTest, DirectProxyResolverSimultaneousCallbacksTest) {
   int called = 0;
-  auto callback = base::Bind(
+  auto callback = base::BindRepeating(
       [](int* called, const deque<string>& proxies) { (*called)++; }, &called);
 
   resolver_.GetProxiesForUrl("http://foo", callback);

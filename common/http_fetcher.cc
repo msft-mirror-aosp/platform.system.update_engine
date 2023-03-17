@@ -16,10 +16,11 @@
 
 #include "update_engine/common/http_fetcher.h"
 
+#include <utility>
+
 #include <base/functional/bind.h>
 #include <base/logging.h>
 
-using base::Closure;
 using brillo::MessageLoop;
 using std::deque;
 using std::string;
@@ -46,20 +47,21 @@ void HttpFetcher::SetPostData(const void* data, size_t size) {
 
 // Proxy methods to set the proxies, then to pop them off.
 void HttpFetcher::ResolveProxiesForUrl(const string& url,
-                                       const Closure& callback) {
-  CHECK_EQ(static_cast<Closure*>(nullptr), callback_.get());
-  callback_.reset(new Closure(callback));
+                                       base::OnceClosure callback) {
+  CHECK_EQ(static_cast<base::OnceClosure*>(nullptr), callback_.get());
+  callback_.reset(new base::OnceClosure(std::move(callback)));
 
   if (!proxy_resolver_) {
     LOG(INFO) << "Not resolving proxies (no proxy resolver).";
     no_resolver_idle_id_ = MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(&HttpFetcher::NoProxyResolverCallback,
-                   base::Unretained(this)));
+        base::BindOnce(&HttpFetcher::NoProxyResolverCallback,
+                       base::Unretained(this)));
     return;
   }
   proxy_request_ = proxy_resolver_->GetProxiesForUrl(
-      url, base::Bind(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
+      url,
+      base::BindOnce(&HttpFetcher::ProxiesResolved, base::Unretained(this)));
 }
 
 void HttpFetcher::NoProxyResolverCallback() {
@@ -72,9 +74,9 @@ void HttpFetcher::ProxiesResolved(const deque<string>& proxies) {
   if (!proxies.empty())
     SetProxies(proxies);
   CHECK(callback_.get()) << "ProxiesResolved but none pending.";
-  Closure* callback = callback_.release();
+  base::OnceClosure* callback = callback_.release();
   // This may indirectly call back into ResolveProxiesForUrl():
-  callback->Run();
+  std::move(*callback).Run();
   delete callback;
 }
 

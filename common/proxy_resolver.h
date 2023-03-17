@@ -35,8 +35,8 @@ extern const char kNoProxy[];
 // http://<host>[:<port>] - HTTP proxy
 // socks{4,5}://<host>[:<port>] - SOCKS4/5 proxy
 // kNoProxy - no proxy
-typedef base::Callback<void(const std::deque<std::string>& proxies)>
-    ProxiesResolvedFn;
+using ProxiesResolvedFn =
+    base::OnceCallback<void(const std::deque<std::string>& proxies)>;
 
 // An id that identifies a proxy request. Used to cancel an ongoing request
 // before the callback is called.
@@ -54,10 +54,10 @@ class ProxyResolver {
   virtual ~ProxyResolver() {}
 
   // Finds proxies for the given URL and returns them via the callback.
-  // Returns the id of the pending request on success or kProxyRequestIdNull
+  // Returns the id of the pending request on success or `kProxyRequestIdNull`
   // otherwise.
-  virtual ProxyRequestId GetProxiesForUrl(
-      const std::string& url, const ProxiesResolvedFn& callback) = 0;
+  virtual ProxyRequestId GetProxiesForUrl(const std::string& url,
+                                          ProxiesResolvedFn callback) = 0;
 
   // Cancel the proxy resolution request initiated by GetProxiesForUrl(). The
   // |request| value must be the one provided by GetProxiesForUrl().
@@ -73,7 +73,7 @@ class DirectProxyResolver : public ProxyResolver {
 
   ~DirectProxyResolver() override;
   ProxyRequestId GetProxiesForUrl(const std::string& url,
-                                  const ProxiesResolvedFn& callback) override;
+                                  ProxiesResolvedFn callback) override;
   bool CancelProxyRequest(ProxyRequestId request) override;
 
   // Set the number of direct (non-) proxies to be returned by resolver.
@@ -92,7 +92,7 @@ class DirectProxyResolver : public ProxyResolver {
   size_t num_proxies_{1};
 
   // The MainLoop callback, from here we return to the client.
-  void ReturnCallback(const ProxiesResolvedFn& callback);
+  void ReturnCallback(ProxiesResolvedFn callback);
 };
 
 }  // namespace chromeos_update_engine

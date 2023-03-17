@@ -39,7 +39,7 @@ class ChromeBrowserProxyResolver : public ProxyResolver {
 
   // ProxyResolver:
   ProxyRequestId GetProxiesForUrl(const std::string& url,
-                                  const ProxiesResolvedFn& callback) override;
+                                  ProxiesResolvedFn callback) override;
   bool CancelProxyRequest(ProxyRequestId request) override;
 
  private:

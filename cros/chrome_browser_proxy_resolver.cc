@@ -33,15 +33,15 @@ ChromeBrowserProxyResolver::ChromeBrowserProxyResolver()
 ChromeBrowserProxyResolver::~ChromeBrowserProxyResolver() = default;
 
 ProxyRequestId ChromeBrowserProxyResolver::GetProxiesForUrl(
-    const std::string& url, const ProxiesResolvedFn& callback) {
+    const std::string& url, ProxiesResolvedFn callback) {
   const ProxyRequestId id = next_request_id_++;
   brillo::http::GetChromeProxyServersAsync(
       DBusConnection::Get()->GetDBus(),
       url,
-      base::Bind(&ChromeBrowserProxyResolver::OnGetChromeProxyServers,
-                 weak_ptr_factory_.GetWeakPtr(),
-                 id));
-  pending_callbacks_[id] = callback;
+      base::BindRepeating(&ChromeBrowserProxyResolver::OnGetChromeProxyServers,
+                          weak_ptr_factory_.GetWeakPtr(),
+                          id));
+  pending_callbacks_[id] = std::move(callback);
   return id;
 }
 
@@ -59,9 +59,10 @@ void ChromeBrowserProxyResolver::OnGetChromeProxyServers(
   if (it == pending_callbacks_.end())
     return;
 
-  ProxiesResolvedFn callback = it->second;
+  ProxiesResolvedFn callback = std::move(it->second);
   pending_callbacks_.erase(it);
-  callback.Run(std::deque<std::string>(proxies.begin(), proxies.end()));
+  std::move(callback).Run(
+      std::deque<std::string>(proxies.begin(), proxies.end()));
 }
 
 }  // namespace chromeos_update_engine

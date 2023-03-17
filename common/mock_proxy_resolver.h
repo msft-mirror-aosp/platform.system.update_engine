@@ -27,10 +27,11 @@ namespace chromeos_update_engine {
 
 class MockProxyResolver : public ProxyResolver {
  public:
-  MOCK_METHOD2(GetProxiesForUrl,
-               ProxyRequestId(const std::string& url,
-                              const ProxiesResolvedFn& callback));
-  MOCK_METHOD1(CancelProxyRequest, bool(ProxyRequestId request));
+  MOCK_METHOD(ProxyRequestId,
+              GetProxiesForUrl,
+              (const std::string&, ProxiesResolvedFn),
+              (override));
+  MOCK_METHOD(bool, CancelProxyRequest, (ProxyRequestId), (override));
 };
 
 }  // namespace chromeos_update_engine

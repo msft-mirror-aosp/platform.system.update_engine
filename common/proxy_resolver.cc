@@ -16,6 +16,8 @@
 
 #include "update_engine/common/proxy_resolver.h"
 
+#include <utility>
+
 #include <base/functional/bind.h>
 #include <base/location.h>
 
@@ -41,12 +43,12 @@ DirectProxyResolver::~DirectProxyResolver() {
 }
 
 ProxyRequestId DirectProxyResolver::GetProxiesForUrl(
-    const string& url, const ProxiesResolvedFn& callback) {
+    const string& url, ProxiesResolvedFn callback) {
   idle_callback_id_ = MessageLoop::current()->PostTask(
       FROM_HERE,
-      base::Bind(&DirectProxyResolver::ReturnCallback,
-                 base::Unretained(this),
-                 callback));
+      base::BindOnce(&DirectProxyResolver::ReturnCallback,
+                     base::Unretained(this),
+                     std::move(callback)));
   return idle_callback_id_;
 }
 
@@ -54,13 +56,13 @@ bool DirectProxyResolver::CancelProxyRequest(ProxyRequestId request) {
   return MessageLoop::current()->CancelTask(request);
 }
 
-void DirectProxyResolver::ReturnCallback(const ProxiesResolvedFn& callback) {
+void DirectProxyResolver::ReturnCallback(ProxiesResolvedFn callback) {
   idle_callback_id_ = MessageLoop::kTaskIdNull;
 
   // Initialize proxy pool with as many proxies as indicated (all identical).
   deque<string> proxies(num_proxies_, kNoProxy);
 
-  callback.Run(proxies);
+  std::move(callback).Run(proxies);
 }
 
 }  // namespace chromeos_update_engine
