@@ -167,6 +167,7 @@ void UpdateAttempter::Init() {
   // which requires them all to be constructed prior to it being used.
   prefs_ = SystemState::Get()->prefs();
   omaha_request_params_ = SystemState::Get()->request_params();
+  excluder_ = CreateExcluder();
 
   if (cert_checker_)
     cert_checker_->SetObserver(this);
@@ -2161,8 +2162,6 @@ void UpdateAttempter::UpdateEngineStarted() {
 
   SystemState::Get()->payload_state()->UpdateEngineStarted();
   StartP2PAtStartup();
-
-  excluder_ = CreateExcluder();
 }
 
 void UpdateAttempter::MoveToPrefs(const vector<string>& keys) {
