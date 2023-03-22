@@ -235,6 +235,14 @@ const int kSHA256Size = 32;
 // Limit on the number of consecutive updates.
 const int64_t kConsecutiveUpdateLimit = 3;
 
+// Channel constants.
+constexpr const char kCanaryChannel[] = "canary-channel";
+constexpr const char kDevChannel[] = "dev-channel";
+constexpr const char kBetaChannel[] = "beta-channel";
+constexpr const char kStableChannel[] = "stable-channel";
+constexpr const char kLtcChannel[] = "ltc-channel";
+constexpr const char kLtsChannel[] = "lts-channel";
+
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_CONSTANTS_H_

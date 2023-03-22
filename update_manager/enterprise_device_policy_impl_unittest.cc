@@ -24,6 +24,7 @@
 #include "update_engine/update_manager/update_check_allowed_policy_data.h"
 
 using chromeos_update_engine::FakeSystemState;
+using chromeos_update_engine::kStableChannel;
 using std::string;
 
 namespace chromeos_update_manager {
@@ -157,7 +158,7 @@ TEST_F(UmEnterpriseDevicePolicyImplTest, ChannelDowngradeBehaviorNoRollback) {
   fake_state_.device_policy_provider()->var_release_channel_delegated()->reset(
       new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->reset(
-      new std::string("stable-channel"));
+      new std::string(kStableChannel));
 
   EXPECT_EQ(EvalStatus::kContinue, evaluator_->Evaluate());
   EXPECT_FALSE(uca_data_->update_check_params.rollback_on_channel_downgrade);
@@ -167,7 +168,7 @@ TEST_F(UmEnterpriseDevicePolicyImplTest, ChannelDowngradeBehaviorRollback) {
   fake_state_.device_policy_provider()->var_release_channel_delegated()->reset(
       new bool(false));
   fake_state_.device_policy_provider()->var_release_channel()->reset(
-      new std::string("stable-channel"));
+      new std::string(kStableChannel));
   fake_state_.device_policy_provider()->var_channel_downgrade_behavior()->reset(
       new ChannelDowngradeBehavior(ChannelDowngradeBehavior::kRollback));
 

@@ -50,12 +50,12 @@ namespace chromeos_update_engine {
 namespace {
 const char* kChannelsByStability[] = {
     // This list has to be sorted from least stable to most stable channel.
-    "canary-channel",
-    "dev-channel",
-    "beta-channel",
-    "stable-channel",
-    "ltc-channel",
-    "lts-channel",
+    kCanaryChannel,
+    kDevChannel,
+    kBetaChannel,
+    kStableChannel,
+    kLtcChannel,
+    kLtsChannel,
 };
 }  // namespace
 
@@ -77,7 +77,7 @@ bool OmahaRequestParams::Init(const string& app_version,
 
   // Validation check the channel names.
   if (!IsValidChannel(image_props_.current_channel))
-    image_props_.current_channel = "stable-channel";
+    image_props_.current_channel = kStableChannel;
   if (!IsValidChannel(mutable_image_props_.target_channel))
     mutable_image_props_.target_channel = image_props_.current_channel;
 
@@ -86,7 +86,7 @@ bool OmahaRequestParams::Init(const string& app_version,
   if (IsCommercialChannel(mutable_image_props_.target_channel)) {
     LOG(WARNING) << "Commercial channel " << mutable_image_props_.target_channel
                  << " can only be set by policy. Defaulting to stable-channel";
-    mutable_image_props_.target_channel = "stable-channel";
+    mutable_image_props_.target_channel = kStableChannel;
   }
   UpdateDownloadChannel();
 
@@ -271,7 +271,7 @@ bool OmahaRequestParams::IsValidChannel(const string& channel,
 
 // static
 bool OmahaRequestParams::IsCommercialChannel(const string& channel) {
-  return channel == "ltc-channel" || channel == "lts-channel";
+  return channel == kLtcChannel || channel == kLtsChannel;
 }
 
 void OmahaRequestParams::set_root(const string& root) {
@@ -306,8 +306,8 @@ bool OmahaRequestParams::ShouldPowerwash() const {
 }
 
 string OmahaRequestParams::GetAppId() const {
-  return download_channel_ == "canary-channel" ? image_props_.canary_product_id
-                                               : image_props_.product_id;
+  return download_channel_ == kCanaryChannel ? image_props_.canary_product_id
+                                             : image_props_.product_id;
 }
 
 string OmahaRequestParams::GetDlcAppId(const std::string& dlc_id) const {

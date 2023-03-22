@@ -73,7 +73,7 @@ string GetMachineType() {
 TEST_F(OmahaRequestParamsTest, MissingChannelTest) {
   EXPECT_TRUE(params_.Init("", "", {}));
   // By default, if no channel is set, we should track the stable-channel.
-  EXPECT_EQ("stable-channel", params_.target_channel());
+  EXPECT_EQ(kStableChannel, params_.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, ForceVersionTest) {
@@ -109,12 +109,12 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelTest) {
     OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
-    EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
+    EXPECT_TRUE(params.SetTargetChannel(kCanaryChannel, false, nullptr));
     EXPECT_FALSE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", {}));
-  EXPECT_EQ("canary-channel", params_.target_channel());
+  EXPECT_EQ(kCanaryChannel, params_.target_channel());
   EXPECT_FALSE(params_.mutable_image_props_.is_powerwash_allowed);
 }
 
@@ -123,11 +123,11 @@ TEST_F(OmahaRequestParamsTest, SetTargetCommercialChannelTest) {
     OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
-    EXPECT_TRUE(params.SetTargetChannel("ltc-channel", false, nullptr));
+    EXPECT_TRUE(params.SetTargetChannel(kLtcChannel, false, nullptr));
   }
   params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", {}));
-  EXPECT_EQ("stable-channel", params_.target_channel());
+  EXPECT_EQ(kStableChannel, params_.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, SetCommercialChannelUsingParamTest) {
@@ -135,11 +135,11 @@ TEST_F(OmahaRequestParamsTest, SetCommercialChannelUsingParamTest) {
     OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
-    EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+    EXPECT_TRUE(params.SetTargetChannel(kStableChannel, false, nullptr));
   }
   params_.set_root(tempdir_.GetPath().value());
-  EXPECT_TRUE(params_.Init("", "", {.target_channel = "ltc-channel"}));
-  EXPECT_EQ("ltc-channel", params_.target_channel());
+  EXPECT_TRUE(params_.Init("", "", {.target_channel = kLtcChannel}));
+  EXPECT_EQ(kLtcChannel, params_.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
@@ -147,12 +147,12 @@ TEST_F(OmahaRequestParamsTest, SetIsPowerwashAllowedTest) {
     OmahaRequestParams params;
     params.set_root(tempdir_.GetPath().value());
     EXPECT_TRUE(params.Init("", "", {}));
-    EXPECT_TRUE(params.SetTargetChannel("canary-channel", true, nullptr));
+    EXPECT_TRUE(params.SetTargetChannel(kCanaryChannel, true, nullptr));
     EXPECT_TRUE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", {}));
-  EXPECT_EQ("canary-channel", params_.target_channel());
+  EXPECT_EQ(kCanaryChannel, params_.target_channel());
   EXPECT_TRUE(params_.mutable_image_props_.is_powerwash_allowed);
 }
 
@@ -167,22 +167,22 @@ TEST_F(OmahaRequestParamsTest, SetTargetChannelInvalidTest) {
     EXPECT_FALSE(
         params.SetTargetChannel("dogfood-channel", true, &error_message));
     // The error message should include a message about the valid channels.
-    EXPECT_NE(string::npos, error_message.find("stable-channel"));
+    EXPECT_NE(string::npos, error_message.find(kStableChannel));
     EXPECT_FALSE(params.mutable_image_props_.is_powerwash_allowed);
   }
   params_.set_root(tempdir_.GetPath().value());
   EXPECT_TRUE(params_.Init("", "", {}));
-  EXPECT_EQ("stable-channel", params_.target_channel());
+  EXPECT_EQ(kStableChannel, params_.target_channel());
   EXPECT_FALSE(params_.mutable_image_props_.is_powerwash_allowed);
 }
 
 TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
-  EXPECT_TRUE(params_.IsValidChannel("canary-channel"));
-  EXPECT_TRUE(params_.IsValidChannel("stable-channel"));
-  EXPECT_TRUE(params_.IsValidChannel("beta-channel"));
-  EXPECT_TRUE(params_.IsValidChannel("dev-channel"));
-  EXPECT_TRUE(params_.IsValidChannel("ltc-channel"));
-  EXPECT_TRUE(params_.IsValidChannel("lts-channel"));
+  EXPECT_TRUE(params_.IsValidChannel(kCanaryChannel));
+  EXPECT_TRUE(params_.IsValidChannel(kStableChannel));
+  EXPECT_TRUE(params_.IsValidChannel(kBetaChannel));
+  EXPECT_TRUE(params_.IsValidChannel(kDevChannel));
+  EXPECT_TRUE(params_.IsValidChannel(kLtcChannel));
+  EXPECT_TRUE(params_.IsValidChannel(kLtsChannel));
   EXPECT_FALSE(params_.IsValidChannel("testimage-channel"));
   EXPECT_FALSE(params_.IsValidChannel("dogfood-channel"));
   EXPECT_FALSE(params_.IsValidChannel("some-channel"));
@@ -195,51 +195,51 @@ TEST_F(OmahaRequestParamsTest, IsValidChannelTest) {
 }
 
 TEST_F(OmahaRequestParamsTest, SetTargetChannelWorks) {
-  params_.set_target_channel("dev-channel");
-  EXPECT_EQ("dev-channel", params_.target_channel());
+  params_.set_target_channel(kDevChannel);
+  EXPECT_EQ(kDevChannel, params_.target_channel());
 
   // When an invalid value is set, it should be ignored.
   EXPECT_FALSE(params_.SetTargetChannel("invalid-channel", false, nullptr));
-  EXPECT_EQ("dev-channel", params_.target_channel());
+  EXPECT_EQ(kDevChannel, params_.target_channel());
 
   // When set to a valid value, it should take effect.
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
-  EXPECT_EQ("beta-channel", params_.target_channel());
+  EXPECT_TRUE(params_.SetTargetChannel(kBetaChannel, true, nullptr));
+  EXPECT_EQ(kBetaChannel, params_.target_channel());
 
   // When set to the same value, it should be idempotent.
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
-  EXPECT_EQ("beta-channel", params_.target_channel());
+  EXPECT_TRUE(params_.SetTargetChannel(kBetaChannel, true, nullptr));
+  EXPECT_EQ(kBetaChannel, params_.target_channel());
 
   // When set to a valid value while a change is already pending, it should
   // succeed.
-  EXPECT_TRUE(params_.SetTargetChannel("stable-channel", true, nullptr));
-  EXPECT_EQ("stable-channel", params_.target_channel());
+  EXPECT_TRUE(params_.SetTargetChannel(kStableChannel, true, nullptr));
+  EXPECT_EQ(kStableChannel, params_.target_channel());
 
   // Set a different channel in mutable_image_props_.
-  params_.set_target_channel("stable-channel");
+  params_.set_target_channel(kStableChannel);
 
   // When set to a valid value while a change is already pending, it should
   // succeed.
   params_.Init("", "", {});
-  EXPECT_TRUE(params_.SetTargetChannel("beta-channel", true, nullptr));
+  EXPECT_TRUE(params_.SetTargetChannel(kBetaChannel, true, nullptr));
   // The target channel should reflect the change, but the download channel
   // should continue to retain the old value ...
-  EXPECT_EQ("beta-channel", params_.target_channel());
-  EXPECT_EQ("stable-channel", params_.download_channel());
+  EXPECT_EQ(kBetaChannel, params_.target_channel());
+  EXPECT_EQ(kStableChannel, params_.download_channel());
 
   // ... until we update the download channel explicitly.
   params_.UpdateDownloadChannel();
-  EXPECT_EQ("beta-channel", params_.download_channel());
-  EXPECT_EQ("beta-channel", params_.target_channel());
+  EXPECT_EQ(kBetaChannel, params_.download_channel());
+  EXPECT_EQ(kBetaChannel, params_.target_channel());
 }
 
 TEST_F(OmahaRequestParamsTest, ChannelIndexTest) {
-  int canary = params_.GetChannelIndex("canary-channel");
-  int dev = params_.GetChannelIndex("dev-channel");
-  int beta = params_.GetChannelIndex("beta-channel");
-  int stable = params_.GetChannelIndex("stable-channel");
-  int ltc = params_.GetChannelIndex("ltc-channel");
-  int lts = params_.GetChannelIndex("lts-channel");
+  int canary = params_.GetChannelIndex(kCanaryChannel);
+  int dev = params_.GetChannelIndex(kDevChannel);
+  int beta = params_.GetChannelIndex(kBetaChannel);
+  int stable = params_.GetChannelIndex(kStableChannel);
+  int ltc = params_.GetChannelIndex(kLtcChannel);
+  int lts = params_.GetChannelIndex(kLtsChannel);
   EXPECT_LE(canary, dev);
   EXPECT_LE(dev, beta);
   EXPECT_LE(beta, stable);
@@ -254,12 +254,12 @@ TEST_F(OmahaRequestParamsTest, ChannelIndexTest) {
 }
 
 TEST_F(OmahaRequestParamsTest, ToMoreStableChannelFlagTest) {
-  params_.image_props_.current_channel = "canary-channel";
-  params_.download_channel_ = "stable-channel";
+  params_.image_props_.current_channel = kCanaryChannel;
+  params_.download_channel_ = kStableChannel;
   EXPECT_TRUE(params_.ToMoreStableChannel());
-  params_.image_props_.current_channel = "stable-channel";
+  params_.image_props_.current_channel = kStableChannel;
   EXPECT_FALSE(params_.ToMoreStableChannel());
-  params_.download_channel_ = "beta-channel";
+  params_.download_channel_ = kBetaChannel;
   EXPECT_FALSE(params_.ToMoreStableChannel());
 }
 
@@ -272,8 +272,8 @@ TEST_F(OmahaRequestParamsTest, ShouldPowerwashTest) {
   params_.download_channel_ = "bar-channel";
   EXPECT_TRUE(params_.ShouldPowerwash());
   params_.image_props_.allow_arbitrary_channels = false;
-  params_.image_props_.current_channel = "canary-channel";
-  params_.download_channel_ = "stable-channel";
+  params_.image_props_.current_channel = kCanaryChannel;
+  params_.download_channel_ = kStableChannel;
   EXPECT_TRUE(params_.ShouldPowerwash());
 }
 
@@ -328,9 +328,9 @@ TEST_F(OmahaRequestParamsTest, MiniOsParams) {
 }
 
 TEST_F(OmahaRequestParamsTest, IsCommercialChannel) {
-  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel("lts-channel"));
-  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel("ltc-channel"));
-  EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel("stable-channel"));
+  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel(kLtsChannel));
+  EXPECT_TRUE(OmahaRequestParams::IsCommercialChannel(kLtcChannel));
+  EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel(kStableChannel));
   EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel("foo-channel"));
 }
 

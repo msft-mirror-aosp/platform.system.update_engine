@@ -129,9 +129,9 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithNoPolicy) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
   // If SetTargetChannel is called it means the policy check passed.
   EXPECT_CALL(*FakeSystemState::Get()->mock_request_params(),
-              SetTargetChannel("stable-channel", true, _))
+              SetTargetChannel(kStableChannel, true, _))
       .WillOnce(Return(true));
-  EXPECT_TRUE(common_service_.SetChannel(&error_, "stable-channel", true));
+  EXPECT_TRUE(common_service_.SetChannel(&error_, kStableChannel, true));
   ASSERT_EQ(nullptr, error_);
 }
 
@@ -142,10 +142,10 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithDelegatedPolicy) {
   EXPECT_CALL(mock_device_policy, GetReleaseChannelDelegated(_))
       .WillOnce(DoAll(SetArgPointee<0>(true), Return(true)));
   EXPECT_CALL(*FakeSystemState::Get()->mock_request_params(),
-              SetTargetChannel("beta-channel", true, _))
+              SetTargetChannel(kBetaChannel, true, _))
       .WillOnce(Return(true));
 
-  EXPECT_TRUE(common_service_.SetChannel(&error_, "beta-channel", true));
+  EXPECT_TRUE(common_service_.SetChannel(&error_, kBetaChannel, true));
   ASSERT_EQ(nullptr, error_);
 }
 
@@ -167,7 +167,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithInvalidChannel) {
 TEST_F(UpdateEngineServiceTest, SetChannelWithCommercialChannelLts) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
 
-  EXPECT_FALSE(common_service_.SetChannel(&error_, "lts-channel", true));
+  EXPECT_FALSE(common_service_.SetChannel(&error_, kLtsChannel, true));
   ASSERT_NE(nullptr, error_);
   EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
                                UpdateEngineService::kErrorFailed));
@@ -177,7 +177,7 @@ TEST_F(UpdateEngineServiceTest, SetChannelWithCommercialChannelLts) {
 TEST_F(UpdateEngineServiceTest, SetChannelWithCommercialChannelLtc) {
   EXPECT_CALL(*mock_update_attempter_, RefreshDevicePolicy());
 
-  EXPECT_FALSE(common_service_.SetChannel(&error_, "ltc-channel", true));
+  EXPECT_FALSE(common_service_.SetChannel(&error_, kLtcChannel, true));
   ASSERT_NE(nullptr, error_);
   EXPECT_TRUE(error_->HasError(UpdateEngineService::kErrorDomain,
                                UpdateEngineService::kErrorFailed));

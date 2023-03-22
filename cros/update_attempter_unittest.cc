@@ -1720,7 +1720,7 @@ TEST_F(UpdateAttempterTest, ChannelDowngradeNoRollback) {
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
   FakeSystemState::Get()->request_params()->set_root(tempdir.GetPath().value());
   attempter_.CalculateUpdateParams({
-      .target_channel = "stable-channel",
+      .target_channel = kStableChannel,
   });
   EXPECT_FALSE(
       FakeSystemState::Get()->request_params()->is_powerwash_allowed());
@@ -1732,7 +1732,7 @@ TEST_F(UpdateAttempterTest, ChannelDowngradeRollback) {
   FakeSystemState::Get()->request_params()->set_root(tempdir.GetPath().value());
   attempter_.CalculateUpdateParams({
       .rollback_on_channel_downgrade = true,
-      .target_channel = "stable-channel",
+      .target_channel = kStableChannel,
   });
   EXPECT_TRUE(FakeSystemState::Get()->request_params()->is_powerwash_allowed());
 }

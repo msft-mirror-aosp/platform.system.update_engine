@@ -64,7 +64,7 @@ TEST_F(ImagePropertiesTest, SimpleTest) {
   EXPECT_EQ("arm-generic", props.board);
   EXPECT_EQ("{87efface-864d-49a5-9bb3-4b050a7c227a}", props.product_id);
   EXPECT_EQ("0.2.2.3", props.version);
-  EXPECT_EQ("dev-channel", props.current_channel);
+  EXPECT_EQ(kDevChannel, props.current_channel);
   EXPECT_EQ("http://www.google.com", props.omaha_url);
 }
 
@@ -104,10 +104,10 @@ TEST_F(ImagePropertiesTest, OverrideTest) {
       "CHROMEOS_AUSERVER=https://www.google.com"));
   ImageProperties props = LoadImageProperties();
   EXPECT_EQ("x86-generic", props.board);
-  EXPECT_EQ("dev-channel", props.current_channel);
+  EXPECT_EQ(kDevChannel, props.current_channel);
   EXPECT_EQ("https://www.google.com", props.omaha_url);
   MutableImageProperties mutable_props = LoadMutableImageProperties();
-  EXPECT_EQ("beta-channel", mutable_props.target_channel);
+  EXPECT_EQ(kBetaChannel, mutable_props.target_channel);
 }
 
 TEST_F(ImagePropertiesTest, OverrideLockDownTest) {
@@ -125,10 +125,10 @@ TEST_F(ImagePropertiesTest, OverrideLockDownTest) {
   SetLockDown(true);
   ImageProperties props = LoadImageProperties();
   EXPECT_EQ("arm-generic", props.board);
-  EXPECT_EQ("dev-channel", props.current_channel);
+  EXPECT_EQ(kDevChannel, props.current_channel);
   EXPECT_EQ("https://www.google.com", props.omaha_url);
   MutableImageProperties mutable_props = LoadMutableImageProperties();
-  EXPECT_EQ("stable-channel", mutable_props.target_channel);
+  EXPECT_EQ(kStableChannel, mutable_props.target_channel);
 }
 
 TEST_F(ImagePropertiesTest, BoardAppIdUsedForNonCanaryChannelTest) {
@@ -139,7 +139,7 @@ TEST_F(ImagePropertiesTest, BoardAppIdUsedForNonCanaryChannelTest) {
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ImageProperties props = LoadImageProperties();
-  EXPECT_EQ("stable-channel", props.current_channel);
+  EXPECT_EQ(kStableChannel, props.current_channel);
   EXPECT_EQ("b", props.product_id);
 }
 
@@ -151,7 +151,7 @@ TEST_F(ImagePropertiesTest, CanaryAppIdUsedForCanaryChannelTest) {
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=canary-channel\n"));
   ImageProperties props = LoadImageProperties();
-  EXPECT_EQ("canary-channel", props.current_channel);
+  EXPECT_EQ(kCanaryChannel, props.current_channel);
   EXPECT_EQ("c", props.canary_product_id);
 }
 
@@ -162,7 +162,7 @@ TEST_F(ImagePropertiesTest, ReleaseAppIdUsedAsDefaultTest) {
                       "CHROMEOS_CANARY_APPID=c\n"
                       "CHROMEOS_RELEASE_TRACK=stable-channel\n"));
   ImageProperties props = LoadImageProperties();
-  EXPECT_EQ("stable-channel", props.current_channel);
+  EXPECT_EQ(kStableChannel, props.current_channel);
   EXPECT_EQ("r", props.product_id);
 }
 

@@ -510,8 +510,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("canary-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.set_current_channel(kCanaryChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
 
@@ -538,8 +538,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("canary-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  params.set_current_channel(kCanaryChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("2.0.0.0");
 
@@ -566,8 +566,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("beta-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.set_current_channel(kBetaChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12345.48.0.0");
 
@@ -594,8 +594,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("beta-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.set_current_channel(kBetaChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12345.0.0.0");
 
@@ -625,8 +625,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("beta-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.set_current_channel(kBetaChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12347.48.0.0");
 
@@ -659,8 +659,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("beta-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", true, nullptr));
+  params.set_current_channel(kBetaChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, true, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12347.48.0.0");
 
@@ -692,8 +692,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(true);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("beta-channel");
-  EXPECT_TRUE(params.SetTargetChannel("stable-channel", false, nullptr));
+  params.set_current_channel(kBetaChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kStableChannel, false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("12347.48.0.0");
 
@@ -720,8 +720,8 @@ TEST_F(OmahaResponseHandlerActionTest,
   OmahaRequestParams params;
   FakeSystemState::Get()->fake_hardware()->SetIsOfficialBuild(false);
   params.set_root(tempdir.GetPath().value());
-  params.set_current_channel("stable-channel");
-  EXPECT_TRUE(params.SetTargetChannel("canary-channel", false, nullptr));
+  params.set_current_channel(kStableChannel);
+  EXPECT_TRUE(params.SetTargetChannel(kCanaryChannel, false, nullptr));
   params.UpdateDownloadChannel();
   params.set_app_version("1.0.0.0");
 

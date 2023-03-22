@@ -2436,9 +2436,8 @@ TEST_F(OmahaRequestActionTest, TestChangingToMoreStableChannel) {
   request_params_.set_app_id("{22222222-2222-2222-2222-222222222222}");
   request_params_.set_app_version("1.2.3.4");
   request_params_.set_product_components("o.bundle=1");
-  request_params_.set_current_channel("canary-channel");
-  EXPECT_TRUE(
-      request_params_.SetTargetChannel("stable-channel", true, nullptr));
+  request_params_.set_current_channel(kCanaryChannel);
+  EXPECT_TRUE(request_params_.SetTargetChannel(kStableChannel, true, nullptr));
   request_params_.UpdateDownloadChannel();
   EXPECT_TRUE(request_params_.ShouldPowerwash());
 
@@ -2466,9 +2465,8 @@ TEST_F(OmahaRequestActionTest, TestChangingToLessStableChannel) {
   request_params_.set_app_id("{11111111-1111-1111-1111-111111111111}");
   request_params_.set_app_version("5.6.7.8");
   request_params_.set_product_components("o.bundle=1");
-  request_params_.set_current_channel("stable-channel");
-  EXPECT_TRUE(
-      request_params_.SetTargetChannel("canary-channel", false, nullptr));
+  request_params_.set_current_channel(kStableChannel);
+  EXPECT_TRUE(request_params_.SetTargetChannel(kCanaryChannel, false, nullptr));
   request_params_.UpdateDownloadChannel();
   EXPECT_FALSE(request_params_.ShouldPowerwash());
 

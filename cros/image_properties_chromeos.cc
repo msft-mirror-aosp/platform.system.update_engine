@@ -94,7 +94,7 @@ ImageProperties LoadImageProperties() {
   brillo::KeyValueStore lsb_release;
   LoadLsbRelease(LsbReleaseSource::kSystem, &lsb_release);
   result.current_channel = GetStringWithDefault(
-      lsb_release, kLsbReleaseUpdateChannelKey, "stable-channel");
+      lsb_release, kLsbReleaseUpdateChannelKey, kStableChannel);
 
   // In dev-mode and unofficial build we can override the image properties set
   // in the system image with the ones from the stateful partition, except the
@@ -134,7 +134,7 @@ MutableImageProperties LoadMutableImageProperties() {
   LoadLsbRelease(LsbReleaseSource::kSystem, &lsb_release);
   LoadLsbRelease(LsbReleaseSource::kStateful, &lsb_release);
   result.target_channel = GetStringWithDefault(
-      lsb_release, kLsbReleaseUpdateChannelKey, "stable-channel");
+      lsb_release, kLsbReleaseUpdateChannelKey, kStableChannel);
   if (!lsb_release.GetBoolean(kLsbReleaseIsPowerwashAllowedKey,
                               &result.is_powerwash_allowed))
     result.is_powerwash_allowed = false;
