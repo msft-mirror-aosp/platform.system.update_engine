@@ -17,6 +17,7 @@
 #include "update_engine/cros/real_system_state.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -38,6 +39,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/dbus_connection.h"
 #include "update_engine/cros/metrics_reporter_omaha.h"
+#include "update_engine/update_manager/omaha_request_params_policy.h"
 #include "update_engine/update_manager/state_factory.h"
 
 namespace chromeos_update_engine {
@@ -187,9 +189,22 @@ bool RealSystemState::Initialize() {
     return false;
   }
 
-  // For images that are build for debugging purposes like test images
-  // initialize max kernel key version to 0xfffffffe, which is logical infinity.
-  if (!hardware_->IsOfficialBuild()) {
+  std::optional<int> rollback_allowed_milestones;
+  bool consumer_owned = true;
+  update_attempter_->RefreshDevicePolicy();
+  const policy::DevicePolicy* policy = device_policy();
+  if (policy) {
+    if (int policy_value; policy->GetRollbackAllowedMilestones(&policy_value)) {
+      rollback_allowed_milestones = policy_value;
+    }
+    consumer_owned = !policy->IsEnterpriseEnrolled();
+  }
+
+  // Set max kernel key version to `kRollforwardInfinity`.
+  // On non-official builds, consumer devices, or if rollback is disabled via
+  // the allowed milestone policy, kernel key version should not be restricted.
+  if (!hardware_->IsOfficialBuild() || rollback_allowed_milestones == 0 ||
+      consumer_owned) {
     if (!hardware()->SetMaxKernelKeyRollforward(
             chromeos_update_manager::kRollforwardInfinity)) {
       LOG(ERROR) << "Failed to set kernel_max_rollforward to infinity for"
