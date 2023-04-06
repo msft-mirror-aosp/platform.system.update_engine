@@ -82,6 +82,12 @@ class BootControlInterface {
                                   Slot slot,
                                   std::string* device) const = 0;
 
+  // Returns the error counter for the given slot's. Returns false on error.
+  virtual bool GetErrorCounter(Slot slot, int* error_counter) const = 0;
+
+  // Sets the given `error_counter`. Returns false on error.
+  virtual bool SetErrorCounter(Slot slot, int error_counter) = 0;
+
   // Returns whether the passed |slot| is marked as bootable. Returns false if
   // the slot is invalid.
   virtual bool IsSlotBootable(Slot slot) const = 0;

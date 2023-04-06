@@ -307,6 +307,50 @@ bool BootControlChromeOS::GetPartitionDevice(const string& partition_name,
   return GetPartitionDevice(partition_name, slot, false, device, nullptr);
 }
 
+bool BootControlChromeOS::GetErrorCounter(BootControlInterface::Slot slot,
+                                          int* error_counter) const {
+  int partition_num = GetPartitionNumber(kChromeOSPartitionNameKernel, slot);
+  if (partition_num < 0)
+    return false;
+
+  CgptAddParams params;
+  memset(&params, '\0', sizeof(params));
+  params.drive_name = const_cast<char*>(boot_disk_name_.c_str());
+  params.partition = partition_num;
+
+  int retval = CgptGetPartitionDetails(&params);
+  if (retval != CGPT_OK)
+    return false;
+
+  *error_counter = params.error_counter;
+  return true;
+}
+
+bool BootControlChromeOS::SetErrorCounter(BootControlInterface::Slot slot,
+                                          int error_counter) {
+  int partition_num = GetPartitionNumber(kChromeOSPartitionNameKernel, slot);
+  if (partition_num < 0)
+    return false;
+
+  CgptAddParams add_params;
+  memset(&add_params, 0, sizeof(add_params));
+
+  add_params.drive_name = const_cast<char*>(boot_disk_name_.c_str());
+  add_params.partition = partition_num;
+
+  add_params.error_counter = error_counter;
+  add_params.set_error_counter = 1;
+
+  int retval = CgptSetAttributes(&add_params);
+  if (retval != CGPT_OK) {
+    LOG(ERROR) << "Unable to set error_counter to " << add_params.tries
+               << " for slot " << SlotName(slot) << " (partition "
+               << partition_num << ").";
+    return false;
+  }
+  return true;
+}
+
 bool BootControlChromeOS::IsSlotBootable(Slot slot) const {
   int partition_num = GetPartitionNumber(kChromeOSPartitionNameKernel, slot);
   if (partition_num < 0)

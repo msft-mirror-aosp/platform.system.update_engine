@@ -75,6 +75,16 @@ class FakeBootControl : public BootControlInterface {
     return GetPartitionDevice(partition_name, slot, false, device, nullptr);
   }
 
+  bool GetErrorCounter(Slot slot, int* error_counter) const override {
+    *error_counter = error_counter_;
+    return true;
+  }
+
+  bool SetErrorCounter(Slot slot, int error_counter) override {
+    error_counter_ = error_counter;
+    return true;
+  }
+
   bool IsSlotBootable(BootControlInterface::Slot slot) const override {
     return slot < num_slots_ && is_bootable_[slot];
   }
@@ -131,6 +141,8 @@ class FakeBootControl : public BootControlInterface {
     is_bootable_[slot] = bootable;
   }
 
+  void SetErrorCounter(int error_counter) { error_counter_ = error_counter; }
+
   DynamicPartitionControlInterface* GetDynamicPartitionControl() override {
     return dynamic_partition_control_.get();
   }
@@ -159,6 +171,7 @@ class FakeBootControl : public BootControlInterface {
   std::vector<std::map<std::string, std::string>> devices_;
 
   bool supports_minios_{false};
+  int error_counter_ = 0;
 
   std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 };

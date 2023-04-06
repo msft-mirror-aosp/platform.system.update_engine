@@ -256,4 +256,55 @@ TEST_F(HardwareChromeOSTest, RecoveryKeyVersionTrimWhitespaces) {
   EXPECT_EQ(std::string("888"), version);
 }
 
+TEST_F(HardwareChromeOSTest, IsRootfsVerificationEnabled) {
+  base::FilePath test_path = root_dir_.GetPath();
+  hardware_.SetRootForTest(test_path);
+  {
+    std::string cmdline =
+        R"(cros_secure console= loglevel=7 init=/sbin/init )"
+        R"(cros_secure drm.trace=0x106 )"
+        R"(root=PARTUUID=dc3f3c92-18db-744b-a2c2-7b0eb696b879/PARTNROFF=1 )"
+        R"(rootwait rw dm_verity.error_behavior=3 dm_verity.max_bios=-1 )"
+        R"(dm_verity.dev_wait=0 )"
+        R"(dm="1 vroot none ro 1,0 6348800 verity payload=ROOT_DEV )"
+        R"(hashtree=HASH_DEV hashstart=6348800 alg=sha256 )"
+        R"(root_hexdigest=ebc3199685b6f9217c59016b3d4a82ce066c2087a3b99c9c38e9)"
+        R"(772281288fb1 )"
+        R"(salt=00d2f004a524773dd1c69aada1cc91b9a5de7701ffbfd4fec89ff34469a47)"
+        R"(cf0" noinitrd cros_debug vt.global_cursor_default=0 )"
+        R"(kern_guid=dc3f3c92-18db-744b-a2c2-7b0eb696b879 add_efi_memmap )"
+        R"(boot=local noresume noswap i915.modeset=1 ramoops.ecc=1 )"
+        R"(tpm_tis.force=0 intel_pmc_core.warn_on_s0ix_failures=1 )"
+        R"(i915.enable_guc=3 i915.enable_dc=4 xdomain=0 swiotlb=65536 )"
+        R"(intel_iommu=on i915.enable_psr=1 usb-storage.quirks=13fe:6500:u)";
+    brillo::TouchFile(test_path.Append("proc").Append("cmdline"));
+    EXPECT_TRUE(
+        base::WriteFile(test_path.Append("proc").Append("cmdline"), cmdline));
+    EXPECT_FALSE(hardware_.IsRootfsVerificationEnabled());
+  }
+
+  {
+    std::string cmdline =
+        R"(cros_secure console= loglevel=7 init=/sbin/init )"
+        R"(cros_secure drm.trace=0x106 )"
+        R"(root=PARTUUID=dc3f3c92-18db-744b-a2c2-7b0eb696b879/PARTNROFF=1 )"
+        R"(rootwait rw dm_verity.error_behavior=3 dm_verity.max_bios=-1 )"
+        R"(dm_verity.dev_wait=1 )"
+        R"(dm="1 vroot none ro 1,0 6348800 verity payload=ROOT_DEV )"
+        R"(hashtree=HASH_DEV hashstart=6348800 alg=sha256 )"
+        R"(root_hexdigest=ebc3199685b6f9217c59016b3d4a82ce066c2087a3b99c9c38e9)"
+        R"(772281288fb1 )"
+        R"(salt=00d2f004a524773dd1c69aada1cc91b9a5de7701ffbfd4fec89ff34469a47)"
+        R"(cf0" noinitrd cros_debug vt.global_cursor_default=0 )"
+        R"(kern_guid=dc3f3c92-18db-744b-a2c2-7b0eb696b879 add_efi_memmap )"
+        R"(boot=local noresume noswap i915.modeset=1 ramoops.ecc=1 )"
+        R"(tpm_tis.force=0 intel_pmc_core.warn_on_s0ix_failures=1 )"
+        R"(i915.enable_guc=3 i915.enable_dc=4 xdomain=0 swiotlb=65536 )"
+        R"(intel_iommu=on i915.enable_psr=1 usb-storage.quirks=13fe:6500:u)";
+    EXPECT_TRUE(
+        base::WriteFile(test_path.Append("proc").Append("cmdline"), cmdline));
+    EXPECT_TRUE(hardware_.IsRootfsVerificationEnabled());
+  }
+}
+
 }  // namespace chromeos_update_engine

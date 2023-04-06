@@ -180,6 +180,10 @@ class HardwareInterface {
   virtual ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const = 0;
+
+  // Returns true if rootfs verification is enabled.
+  // e.g. "dm_verity.dev_wait" is set to 1 in the kernel commandline.
+  virtual bool IsRootfsVerificationEnabled() const = 0;
 };
 
 }  // namespace chromeos_update_engine

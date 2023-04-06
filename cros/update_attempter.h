@@ -288,6 +288,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns the value of the feature managed by update_engine.
   bool IsFeatureEnabled(const std::string& feature, bool* out_enabled) const;
 
+  // Triggers the rootfs scanning for integrity checking.
+  virtual void RootfsIntegrityCheck() const;
+
   // |DaemonStateInterface| overrides.
   bool StartUpdater() override;
   void AddObserver(ServiceObserverInterface* observer) override {
@@ -547,6 +550,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // Returns the list of DLC IDs that were installed/updated, excluding the ones
   // which had "noupdate" in the Omaha response.
   std::vector<std::string> GetSuccessfulDlcIds();
+
+  void OnRootfsIntegrityCheck(int ret_code, const std::string& output) const;
 
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is

@@ -229,15 +229,19 @@ bool UpdateAttempter::StartUpdater() {
   // Initiate update checks.
   ScheduleUpdates();
 
+  // Start the rootfs integrity check.
+  RootfsIntegrityCheck();
+
+  // Keep this after kicking off rootfs integrity check.
   auto update_boot_flags_action = std::make_unique<UpdateBootFlagsAction>(
       SystemState::Get()->boot_control(), SystemState::Get()->hardware());
   aux_processor_.EnqueueAction(std::move(update_boot_flags_action));
-  // Update boot flags after 45 seconds.
+  // Update boot flags after delay.
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ActionProcessor::StartProcessing,
                  base::Unretained(&aux_processor_)),
-      base::Seconds(45));
+      base::Seconds(60));
 
   // Broadcast the update engine status on startup to ensure consistent system
   // state on crashes.
@@ -2354,6 +2358,57 @@ bool UpdateAttempter::IsFeatureEnabled(const std::string& feature,
   }
   LOG(WARNING) << "Feature (" << feature << ") is not supported.";
   return false;
+}
+
+void UpdateAttempter::RootfsIntegrityCheck() const {
+  int error_counter = kErrorCounterZeroValue;
+  auto* boot_control = SystemState::Get()->boot_control();
+  if (!boot_control->GetErrorCounter(boot_control->GetCurrentSlot(),
+                                     &error_counter)) {
+    LOG(ERROR)
+        << "Failed to get error counter, skipping rootfs integrity check.";
+    return;
+  }
+
+  // Don't need to integrity check unless kernel has non-zero error counter.
+  if (error_counter == kErrorCounterZeroValue) {
+    LOG(INFO)
+        << "Error counter is zero value, skipping rootfs integrity check.";
+    return;
+  }
+
+  if (!SystemState::Get()->hardware()->IsRootfsVerificationEnabled()) {
+    LOG(INFO)
+        << "Rootfs verification is disable, skipping rootfs integrity check.";
+    return;
+  }
+
+  if (Subprocess::Get().Exec(
+          {"/bin/dd", "if=/dev/dm-0", "of=/dev/null", "bs=1MiB"},
+          base::BindOnce(&UpdateAttempter::OnRootfsIntegrityCheck,
+                         weak_ptr_factory_.GetWeakPtr())) == 0) {
+    LOG(ERROR) << "Failed to launch rootfs integrity check process.";
+    return;
+  }
+}
+
+void UpdateAttempter::OnRootfsIntegrityCheck(int ret_code,
+                                             const std::string& output) const {
+  if (ret_code != 0) {
+    LOG(ERROR) << "Rootfs integrity check failed with return code=" << ret_code
+               << " will not reset error counter.";
+    return;
+  }
+
+  LOG(INFO) << "Rootfs integrity check succeeded, resetting error counter.";
+
+  auto* boot_control = SystemState::Get()->boot_control();
+  if (!boot_control->SetErrorCounter(boot_control->GetCurrentSlot(),
+                                     kErrorCounterZeroValue)) {
+    LOG(ERROR) << "Failed to set error counter back to "
+               << kErrorCounterZeroValue;
+    return;
+  }
 }
 
 }  // namespace chromeos_update_engine

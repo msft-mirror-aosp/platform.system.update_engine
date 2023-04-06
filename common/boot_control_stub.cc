@@ -56,6 +56,16 @@ bool BootControlStub::GetPartitionDevice(const string& partition_name,
   return false;
 }
 
+bool BootControlStub::GetErrorCounter(Slot slot, int* error_counter) const {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
+}
+
+bool BootControlStub::SetErrorCounter(Slot slot, int error_counter) {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
+}
+
 bool BootControlStub::IsSlotBootable(Slot slot) const {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
   return false;

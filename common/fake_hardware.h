@@ -262,6 +262,10 @@ class FakeHardware : public HardwareInterface {
     return utils::IsTimestampNewer(old_version, new_version);
   }
 
+  bool IsRootfsVerificationEnabled() const override {
+    return rootfs_verification_enabled_;
+  }
+
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};
@@ -287,6 +291,7 @@ class FakeHardware : public HardwareInterface {
   bool warm_reset_{false};
   std::string recovery_key_version_;
   mutable std::map<std::string, std::string> partition_timestamps_;
+  bool rootfs_verification_enabled_{false};
 };
 
 }  // namespace chromeos_update_engine

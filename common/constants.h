@@ -243,6 +243,9 @@ constexpr const char kStableChannel[] = "stable-channel";
 constexpr const char kLtcChannel[] = "ltc-channel";
 constexpr const char kLtsChannel[] = "lts-channel";
 
+// CrOS GPT constants.
+constexpr int kErrorCounterZeroValue = 0;
+
 }  // namespace chromeos_update_engine
 
 #endif  // UPDATE_ENGINE_COMMON_CONSTANTS_H_

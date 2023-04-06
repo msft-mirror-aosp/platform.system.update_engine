@@ -498,4 +498,14 @@ ErrorCode HardwareChromeOS::IsPartitionUpdateValid(
   return ErrorCode::kSuccess;
 }
 
+bool HardwareChromeOS::IsRootfsVerificationEnabled() const {
+  std::string kernel_cmd_line;
+  if (!base::ReadFileToString(base::FilePath(root_.Append(kKernelCmdline)),
+                              &kernel_cmd_line)) {
+    LOG(ERROR) << "Can't read kernel commandline options.";
+    return false;
+  }
+  return kernel_cmd_line.find("dm_verity.dev_wait=1") != std::string::npos;
+}
+
 }  // namespace chromeos_update_engine

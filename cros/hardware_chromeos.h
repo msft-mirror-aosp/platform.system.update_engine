@@ -76,6 +76,7 @@ class HardwareChromeOS final : public HardwareInterface {
   ErrorCode IsPartitionUpdateValid(
       const std::string& partition_name,
       const std::string& new_version) const override;
+  bool IsRootfsVerificationEnabled() const override;
 
   void SetRootForTest(base::FilePath test_root) { root_ = test_root; }
   void SetNonVolatileDirectoryForTest(const base::FilePath& path) {

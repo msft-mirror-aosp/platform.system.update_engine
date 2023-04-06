@@ -52,6 +52,8 @@ class BootControlStub : public BootControlInterface {
   bool GetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
                           std::string* device) const override;
+  bool GetErrorCounter(Slot slot, int* error_counter) const override;
+  bool SetErrorCounter(Slot slot, int error_counter) override;
   bool IsSlotBootable(BootControlInterface::Slot slot) const override;
   bool MarkSlotUnbootable(BootControlInterface::Slot slot) override;
   bool SetActiveBootSlot(BootControlInterface::Slot slot) override;
