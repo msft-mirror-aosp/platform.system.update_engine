@@ -207,6 +207,7 @@ cc_defaults {
         "libcow_operation_convert",
         "lz4diff-protos",
         "liblz4patch",
+        "libzstd",
     ],
     shared_libs: [
         "libbase",
@@ -506,10 +507,6 @@ cc_defaults {
         "ue_defaults",
     ],
 
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
-
     aidl: {
         local_include_dirs: ["binder_bindings"],
         export_aidl_headers: true,
@@ -561,7 +558,10 @@ cc_binary {
         "libupdate_engine_android_exports",
     ],
 
-    static_libs: ["libupdate_engine_android"],
+    static_libs: [
+        "libupdate_engine_android",
+        "libgflags",
+    ],
     required: [
         "cacerts_google",
         "otacerts",
@@ -587,9 +587,6 @@ cc_binary {
     recovery: true,
 
     cflags: ["-D_UE_SIDELOAD"],
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
     header_libs: ["libgtest_prod_headers"],
 
     srcs: [
@@ -654,10 +651,6 @@ cc_binary {
     name: "update_engine_client",
     defaults: ["ue_defaults"],
 
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
-
     shared_libs: [
         "libbinder",
         "libbinderwrapper",
@@ -710,6 +703,7 @@ cc_defaults {
         "libselinux",
         "lz4diff-protos",
         "liblz4diff",
+        "libzstd",
     ],
     shared_libs: [
         "libbase",
@@ -867,6 +861,7 @@ cc_binary_host {
         "libavb_host_sysdeps",
         "libpayload_consumer",
         "libpayload_generator",
+        "libgflags",
     ],
 
     srcs: ["payload_generator/generate_delta_main.cc"],
@@ -884,6 +879,7 @@ cc_test {
     static_libs: [
         "libpayload_consumer",
         "libpayload_generator",
+        "libgflags",
     ],
 
     srcs: ["payload_generator/generate_delta_main.cc"],
@@ -1079,6 +1075,7 @@ cc_test {
         "libdm",
         "libgmock",
         "libz",
+        "libzstd",
     ],
     shared_libs: [
         "libssl",

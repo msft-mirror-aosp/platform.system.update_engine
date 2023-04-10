@@ -36,7 +36,6 @@
 
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
-#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -203,7 +202,7 @@ bool PostinstallRunnerAction::MountPartition(
 
 void PostinstallRunnerAction::PerformPartitionPostinstall() {
   if (install_plan_.download_url.empty()) {
-    LOG(INFO) << "Skipping post-install during rollback";
+    LOG(INFO) << "Skipping post-install";
     return CompletePostinstall(ErrorCode::kSuccess);
   }
 
@@ -449,11 +448,12 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
       error_code = ErrorCode::kUpdatedButNotActive;
     }
   }
-
-  auto dynamic_control = boot_control_->GetDynamicPartitionControl();
-  CHECK(dynamic_control);
-  dynamic_control->UnmapAllPartitions();
-  LOG(INFO) << "Unmapped all partitions.";
+  if (!install_plan_.partitions.empty()) {
+    auto dynamic_control = boot_control_->GetDynamicPartitionControl();
+    CHECK(dynamic_control);
+    dynamic_control->UnmapAllPartitions();
+    LOG(INFO) << "Unmapped all partitions.";
+  }
 
   ScopedActionCompleter completer(processor_, this);
   completer.set_code(error_code);
