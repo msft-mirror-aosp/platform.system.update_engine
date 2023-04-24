@@ -184,12 +184,15 @@ void DBusUpdateEngineClient::DBusStatusHandlersRegistered(
 void DBusUpdateEngineClient::StatusUpdateHandlersRegistered(
     StatusUpdateHandler* handler) const {
   UpdateEngineStatus status;
+  std::vector<update_engine::StatusUpdateHandler*> just_handler = {handler};
+
   if (!GetStatus(&status)) {
-    handler->IPCError("Could not query current status");
+    for (auto h : handler ? just_handler : handlers_) {
+      h->IPCError("Could not query current status");
+    }
     return;
   }
 
-  std::vector<update_engine::StatusUpdateHandler*> just_handler = {handler};
   for (auto h : handler ? just_handler : handlers_) {
     h->HandleStatusUpdate(status);
   }
