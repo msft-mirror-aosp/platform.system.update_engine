@@ -204,9 +204,8 @@ bool HardwareChromeOS::IsOOBEComplete(base::Time* out_time_of_oobe) const {
 static string ReadValueFromCrosSystem(const string& key) {
   char value_buffer[VB_MAX_STRING_PROPERTY];
 
-  const char* rv = VbGetSystemPropertyString(
-      key.c_str(), value_buffer, sizeof(value_buffer));
-  if (rv != nullptr) {
+  if (VbGetSystemPropertyString(
+          key.c_str(), value_buffer, sizeof(value_buffer)) != -1) {
     string return_value(value_buffer);
     base::TrimWhitespaceASCII(return_value, base::TRIM_ALL, &return_value);
     return return_value;
@@ -493,14 +492,13 @@ bool HardwareChromeOS::IsEnrollmentRecoveryModeEnabled(
 
 int HardwareChromeOS::GetActiveMiniOsPartition() const {
   char value_buffer[VB_MAX_STRING_PROPERTY];
-  const char* rv = VbGetSystemPropertyString(
-      kMiniOsPriorityFlag, value_buffer, sizeof(value_buffer));
-  if (rv == nullptr) {
+  if (VbGetSystemPropertyString(
+          kMiniOsPriorityFlag, value_buffer, sizeof(value_buffer)) == -1) {
     LOG(WARNING) << "Unable to get the active MiniOS partition from "
                  << kMiniOsPriorityFlag << ", defaulting to MINIOS-A.";
     return 0;
   }
-  return (std::string(rv) == "A") ? 0 : 1;
+  return (std::string(value_buffer) == "A") ? 0 : 1;
 }
 
 bool HardwareChromeOS::SetActiveMiniOsPartition(int active_partition) {
