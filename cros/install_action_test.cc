@@ -88,6 +88,8 @@ CHROMEOS_RELEASE_UNIBUILD=1
 
 class InstallActionTestProcessorDelegate : public ActionProcessorDelegate {
  public:
+  using ActionChecker = base::OnceCallback<void(AbstractAction*)>;
+
   InstallActionTestProcessorDelegate() : expected_code_(ErrorCode::kSuccess) {}
   ~InstallActionTestProcessorDelegate() override = default;
 
@@ -101,9 +103,17 @@ class InstallActionTestProcessorDelegate : public ActionProcessorDelegate {
                        ErrorCode code) override {
     EXPECT_EQ(InstallAction::StaticType(), action->Type());
     EXPECT_EQ(expected_code_, code);
+
+    for (auto&& ac : acs) {
+      std::move(ac).Run(action);
+    }
+    decltype(acs)().swap(acs);
   }
 
+  void AddActionChecker(ActionChecker ac) { acs.push_back(std::move(ac)); }
+
   ErrorCode expected_code_{ErrorCode::kSuccess};
+  std::vector<ActionChecker> acs;
 };
 }  // namespace
 
@@ -122,10 +132,11 @@ class InstallActionTest : public ::testing::Test {
     test::SetImagePropertiesRootPrefix(tempdir_.GetPath().value().c_str());
     FakeSystemState::CreateInstance();
 
-    auto http_fetcher =
+    auto mock_http_fetcher =
         std::make_unique<MockHttpFetcher>(data_.data(), data_.size(), nullptr);
+    mock_http_fetcher_ = mock_http_fetcher.get();
     install_action_ = std::make_unique<InstallAction>(
-        std::move(http_fetcher),
+        std::move(mock_http_fetcher),
         "foobar-dlc",
         /*slotting=*/"",
         /*manifest_dir=*/tempdir_.GetPath().Append("dlc").value());
@@ -140,6 +151,8 @@ class InstallActionTest : public ::testing::Test {
 
   ActionProcessor processor_;
   brillo::FakeMessageLoop loop_{nullptr};
+
+  MockHttpFetcher* mock_http_fetcher_{nullptr};
 };
 
 TEST_F(InstallActionTest, ManifestReadFailure) {
@@ -224,7 +237,6 @@ TEST_F(InstallActionTest, PerformInvalidOffsetTest) {
   EXPECT_FALSE(loop_.PendingTasks());
 }
 
-// This also tests backup URLs.
 TEST_F(InstallActionTest, PerformInvalidShaTest) {
   processor_.set_delegate(&delegate_);
   processor_.EnqueueAction(std::move(install_action_));
@@ -241,6 +253,45 @@ TEST_F(InstallActionTest, PerformInvalidShaTest) {
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
   delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
+
+  ASSERT_TRUE(test_utils::WriteFileString(
+      tempdir_.GetPath().Append("foobar-dlc-device").value(), ""));
+  FakeSystemState::Get()->fake_boot_control()->SetPartitionDevice(
+      "dlc/foobar-dlc/package",
+      0,
+      tempdir_.GetPath().Append("foobar-dlc-device").value());
+
+  loop_.PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](ActionProcessor* processor) { processor->StartProcessing(); },
+          base::Unretained(&processor_)));
+  loop_.Run();
+  EXPECT_FALSE(loop_.PendingTasks());
+}
+
+TEST_F(InstallActionTest, TransferFailureFetchesFromBackup) {
+  ASSERT_EQ(install_action_.get()->backup_url_index_, 0);
+
+  processor_.set_delegate(&delegate_);
+  processor_.EnqueueAction(std::move(install_action_));
+
+  mock_http_fetcher_->FailTransfer(404);
+
+  auto manifest =
+      base::StringPrintf(kManifestTemplate, kDefaultSha, kDefaultOffset);
+  ASSERT_TRUE(test_utils::WriteFileString(
+      tempdir_.GetPath()
+          .Append("dlc/foobar-dlc/package/imageloader.json")
+          .value(),
+      manifest));
+  ASSERT_TRUE(test_utils::WriteFileString(
+      tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
+  delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
+  delegate_.AddActionChecker(base::BindOnce([](AbstractAction* a) {
+    auto* ia = reinterpret_cast<InstallAction*>(a);
+    EXPECT_NE(ia->backup_url_index_, 0);
+  }));
 
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("foobar-dlc-device").value(), ""));

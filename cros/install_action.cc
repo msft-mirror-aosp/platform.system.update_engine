@@ -139,8 +139,14 @@ bool InstallAction::ReceivedBytes(HttpFetcher* fetcher,
 
 void InstallAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
   if (!successful) {
+    // Continue to use backup URLs.
+    if (backup_url_index_ < backup_urls_.size()) {
+      LOG(INFO) << "Using backup url at index=" << backup_url_index_;
+      StartInstallation(backup_urls_[backup_url_index_++]);
+      return;
+    }
     LOG(ERROR) << "Transfer failed.";
-    http_fetcher_->TerminateTransfer();
+    TerminateInstallation();
     return;
   }
 
@@ -149,7 +155,7 @@ void InstallAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
     LOG(ERROR) << "Transferred bytes offset (" << offset_
                << ") don't match the expected offset (" << expected_offset
                << ").";
-    http_fetcher_->TerminateTransfer();
+    TerminateInstallation();
     return;
   }
   LOG(INFO) << "Transferred bytes offset (" << expected_offset << ") is valid.";
@@ -164,7 +170,7 @@ void InstallAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
                << base::HexEncode(sha256.data(), sha256.size())
                << ") don't match the expected hash (" << expected_sha256_str
                << ").";
-    http_fetcher_->TerminateTransfer();
+    TerminateInstallation();
     return;
   }
   LOG(INFO) << "Transferred bytes hash (" << expected_sha256_str
@@ -174,14 +180,8 @@ void InstallAction::TransferComplete(HttpFetcher* fetcher, bool successful) {
 }
 
 void InstallAction::TransferTerminated(HttpFetcher* fetcher) {
-  // Continue to use backup URLs.
-  if (backup_url_index_ < backup_urls_.size()) {
-    LOG(INFO) << "Using backup url at index=" << backup_url_index_;
-    StartInstallation(backup_urls_[backup_url_index_++]);
-    return;
-  }
   LOG(ERROR) << "Failed to complete transfer.";
-  processor_->ActionComplete(this, ErrorCode::kScaledInstallationError);
+  TerminateInstallation();
 }
 
 void InstallAction::StartInstallation(const std::string& url) {
@@ -198,6 +198,10 @@ void InstallAction::StartInstallation(const std::string& url) {
   http_fetcher_->SetOffset(0);
   http_fetcher_->UnsetLength();
   http_fetcher_->BeginTransfer(url_to_fetch);
+}
+
+void InstallAction::TerminateInstallation() {
+  processor_->ActionComplete(this, ErrorCode::kScaledInstallationError);
 }
 
 }  // namespace chromeos_update_engine
