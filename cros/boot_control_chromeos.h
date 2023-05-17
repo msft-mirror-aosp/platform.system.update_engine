@@ -51,6 +51,7 @@ class BootControlChromeOS : public BootControlInterface {
   unsigned int GetNumSlots() const override;
   BootControlInterface::Slot GetCurrentSlot() const override;
   BootControlInterface::Slot GetFirstInactiveSlot() const override;
+  base::FilePath GetBootDevicePath() const override;
   bool GetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
                           bool not_in_payload,
@@ -76,6 +77,7 @@ class BootControlChromeOS : public BootControlInterface {
                         std::string* value) override;
   std::string GetMiniOSPartitionName() override;
   bool SupportsMiniOSPartitions() override;
+  bool IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) override;
 
  private:
   friend class BootControlChromeOSTest;
@@ -83,6 +85,7 @@ class BootControlChromeOS : public BootControlInterface {
   FRIEND_TEST(BootControlChromeOSTest, SysfsBlockDeviceTest);
   FRIEND_TEST(BootControlChromeOSTest, GetPartitionNumberTest);
   FRIEND_TEST(BootControlChromeOSTest, ParseDlcPartitionNameTest);
+  FRIEND_TEST(BootControlChromeOSTest, IsLvmStackEnabledTest);
 
   // Returns the sysfs block device for a root block device. For example,
   // SysfsBlockDevice("/dev/sda") returns "/sys/block/sda". Returns an empty
@@ -111,6 +114,9 @@ class BootControlChromeOS : public BootControlInterface {
 
   // The block device of the disk we booted from, without the partition number.
   std::string boot_disk_name_;
+
+  // Cached value for LVM stack enablement check.
+  std::optional<bool> is_lvm_stack_enabled_;
 
   std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 };

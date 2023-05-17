@@ -44,6 +44,7 @@ class BootControlStub : public BootControlInterface {
   unsigned int GetNumSlots() const override;
   BootControlInterface::Slot GetCurrentSlot() const override;
   BootControlInterface::Slot GetFirstInactiveSlot() const override;
+  base::FilePath GetBootDevicePath() const override;
   bool GetPartitionDevice(const std::string& partition_name,
                           Slot slot,
                           bool not_in_payload,
@@ -67,6 +68,7 @@ class BootControlStub : public BootControlInterface {
                         std::string* value) override;
   std::string GetMiniOSPartitionName() override;
   bool SupportsMiniOSPartitions() override;
+  bool IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) override;
 
  private:
   std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;

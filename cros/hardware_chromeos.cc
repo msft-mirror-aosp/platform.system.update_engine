@@ -24,6 +24,7 @@
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
+#include <brillo/blkdev_utils/lvm.h>
 #include <brillo/key_value_store.h>
 #include <debugd/dbus-constants.h>
 #include <vboot/crossystem.h>
@@ -39,6 +40,7 @@ extern "C" {
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/cros/boot_control_chromeos.h"
 #include "update_engine/cros/dbus_connection.h"
 #if USE_CFM || USE_REPORT_REQUISITION
 #include "update_engine/cros/requisition_util.h"
@@ -77,6 +79,12 @@ const char kPowerwashCommand[] = "safe fast keepimg reason=update_engine\n";
 // The contents of the powerwas marker file for the rollback case.
 const char kRollbackPowerwashCommand[] =
     "safe fast keepimg rollback reason=update_engine\n";
+
+#if USE_LVM_STATEFUL_PARTITION
+// Powerwash marker when preserving logical volumes.
+// Append at the front.
+const char kPowerwashPreserveLVs[] = "preserve_lvs";
+#endif  // USE_LVM_STATEFUL_PARTITION
 
 // UpdateManager config path.
 const char* kConfigFilePath = "/etc/update_manager.conf";
@@ -264,6 +272,23 @@ int HardwareChromeOS::GetPowerwashCount() const {
   return powerwash_count;
 }
 
+std::string HardwareChromeOS::GeneratePowerwashCommand(
+    bool save_rollback_data) const {
+  std::string powerwash_command =
+      save_rollback_data ? kRollbackPowerwashCommand : kPowerwashCommand;
+#if USE_LVM_STATEFUL_PARTITION
+  brillo::LogicalVolumeManager lvm;
+  if (SystemState::Get()->boot_control()->IsLvmStackEnabled(&lvm)) {
+    powerwash_command =
+        base::JoinString({kPowerwashPreserveLVs, powerwash_command}, " ");
+  } else {
+    LOG(WARNING) << "LVM stack is not enabled, skipping "
+                 << kPowerwashPreserveLVs << " during powerwash.";
+  }
+#endif  // USE_LVM_STATEFUL_PARTITION
+  return powerwash_command;
+}
+
 bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
   if (save_rollback_data) {
     if (!utils::WriteFile(kRollbackSaveMarkerFile, nullptr, 0)) {
@@ -275,10 +300,9 @@ bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
     }
   }
 
-  const char* powerwash_command =
-      save_rollback_data ? kRollbackPowerwashCommand : kPowerwashCommand;
+  auto powerwash_command = GeneratePowerwashCommand(save_rollback_data);
   bool result = utils::WriteFile(
-      kPowerwashMarkerFile, powerwash_command, strlen(powerwash_command));
+      kPowerwashMarkerFile, powerwash_command.data(), powerwash_command.size());
   if (result) {
     LOG(INFO) << "Created " << kPowerwashMarkerFile
               << " to powerwash on next reboot ("

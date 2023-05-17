@@ -28,6 +28,7 @@
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/test_utils.h"
+#include "update_engine/cros/fake_system_state.h"
 #include "update_engine/update_manager/umtest_utils.h"
 
 using chromeos_update_engine::test_utils::WriteFileString;
@@ -61,7 +62,10 @@ namespace chromeos_update_engine {
 
 class HardwareChromeOSTest : public ::testing::Test {
  protected:
-  void SetUp() override { ASSERT_TRUE(root_dir_.CreateUniqueTempDir()); }
+  void SetUp() override {
+    ASSERT_TRUE(root_dir_.CreateUniqueTempDir());
+    FakeSystemState::CreateInstance();
+  }
 
   void WriteStatefulConfig(const string& config) {
     base::FilePath kFile(root_dir_.GetPath().value() + kStatefulPartition +
@@ -305,6 +309,37 @@ TEST_F(HardwareChromeOSTest, IsRootfsVerificationEnabled) {
         base::WriteFile(test_path.Append("proc").Append("cmdline"), cmdline));
     EXPECT_TRUE(hardware_.IsRootfsVerificationEnabled());
   }
+}
+
+TEST_F(HardwareChromeOSTest, GeneratePowerwashCommandCheck) {
+  constexpr char kExpected[] = "safe fast keepimg reason=update_engine\n";
+#if USE_LVM_STATEFUL_PARTITION
+  FakeSystemState::Get()->fake_boot_control()->SetIsLvmStackEnabled(false);
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/false),
+            kExpected);
+  FakeSystemState::Get()->fake_boot_control()->SetIsLvmStackEnabled(true);
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/false),
+            "preserve_lvs safe fast keepimg reason=update_engine\n");
+#else
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/false),
+            kExpected);
+#endif  // USE_LVM_STATEFUL_PARTITION
+}
+
+TEST_F(HardwareChromeOSTest, GeneratePowerwashCommandWithRollbackDataCheck) {
+  constexpr char kExpected[] =
+      "safe fast keepimg rollback reason=update_engine\n";
+#if USE_LVM_STATEFUL_PARTITION
+  FakeSystemState::Get()->fake_boot_control()->SetIsLvmStackEnabled(false);
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/true),
+            kExpected);
+  FakeSystemState::Get()->fake_boot_control()->SetIsLvmStackEnabled(true);
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/true),
+            "preserve_lvs safe fast keepimg rollback reason=update_engine\n");
+#else
+  EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/true),
+            kExpected);
+#endif  // USE_LVM_STATEFUL_PARTITION
 }
 
 }  // namespace chromeos_update_engine

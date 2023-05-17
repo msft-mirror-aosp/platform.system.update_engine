@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <base/time/time.h>
+#include <brillo/blkdev_utils/lvm.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/dynamic_partition_control_stub.h"
@@ -129,6 +130,8 @@ class FakeBootControl : public BootControlInterface {
     first_inactive_slot_ = slot;
   }
 
+  base::FilePath GetBootDevicePath() const override { return {}; }
+
   void SetPartitionDevice(const std::string& partition_name,
                           BootControlInterface::Slot slot,
                           const std::string& device) {
@@ -161,6 +164,11 @@ class FakeBootControl : public BootControlInterface {
   }
   bool SupportsMiniOSPartitions() override { return supports_minios_; }
 
+  bool IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) override {
+    return is_lvm_stack_enabled_;
+  }
+  void SetIsLvmStackEnabled(bool enabled) { is_lvm_stack_enabled_ = enabled; }
+
  private:
   BootControlInterface::Slot num_slots_{2};
   BootControlInterface::Slot current_slot_{0};
@@ -172,6 +180,8 @@ class FakeBootControl : public BootControlInterface {
 
   bool supports_minios_{false};
   int error_counter_ = 0;
+
+  bool is_lvm_stack_enabled_{false};
 
   std::unique_ptr<DynamicPartitionControlInterface> dynamic_partition_control_;
 };

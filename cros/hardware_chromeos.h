@@ -59,6 +59,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
+  // Must not be called prior to boot control initialization.
   bool SchedulePowerwash(bool save_rollback_data) override;
   bool CancelPowerwash() override;
   bool GetNonVolatileDirectory(base::FilePath* path) const override;
@@ -85,11 +86,16 @@ class HardwareChromeOS final : public HardwareInterface {
 
  private:
   friend class HardwareChromeOSTest;
+  FRIEND_TEST(HardwareChromeOSTest, GeneratePowerwashCommandCheck);
+  FRIEND_TEST(HardwareChromeOSTest,
+              GeneratePowerwashCommandWithRollbackDataCheck);
 
   // Load the update manager config flags (is_oobe_enabled flag) from the
   // appropriate location based on whether we are in a normal mode boot (as
   // passed in |normal_mode|) prefixing the paths with |root_prefix|.
   void LoadConfig(const std::string& root_prefix, bool normal_mode);
+
+  std::string GeneratePowerwashCommand(bool save_rollback_data) const;
 
   bool is_oobe_enabled_;
 

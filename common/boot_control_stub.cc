@@ -40,6 +40,10 @@ BootControlInterface::Slot BootControlStub::GetFirstInactiveSlot() const {
   return 0;
 }
 
+base::FilePath BootControlStub::GetBootDevicePath() const {
+  return base::FilePath{};
+}
+
 bool BootControlStub::GetPartitionDevice(const std::string& partition_name,
                                          BootControlInterface::Slot slot,
                                          bool not_in_payload,
@@ -121,4 +125,10 @@ bool BootControlStub::SupportsMiniOSPartitions() {
   LOG(ERROR) << __FUNCTION__ << " should never be called.";
   return false;
 }
+
+bool BootControlStub::IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) {
+  LOG(ERROR) << __FUNCTION__ << " should never be called.";
+  return false;
+}
+
 }  // namespace chromeos_update_engine

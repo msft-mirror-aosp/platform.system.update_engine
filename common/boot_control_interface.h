@@ -22,7 +22,9 @@
 #include <string>
 #include <vector>
 
+#include <base/files/file_path.h>
 #include <base/functional/callback.h>
+#include <brillo/blkdev_utils/lvm.h>
 
 #include "update_engine/common/dynamic_partition_control_interface.h"
 #include "update_engine/update_metadata.pb.h"
@@ -59,6 +61,9 @@ class BootControlInterface {
   // the result is a number between 0 and GetNumSlots() - 1, will also not be
   // equivalent to `GetCurrentSlot()`. Otherwise will return `kInvalidSlot`.
   virtual Slot GetFirstInactiveSlot() const = 0;
+
+  // Returns the boot device path. Empty path on error.
+  virtual base::FilePath GetBootDevicePath() const = 0;
 
   // Determines the block device for the given partition name and slot number.
   // The |slot| number must be between 0 and GetNumSlots() - 1 and the
@@ -134,6 +139,9 @@ class BootControlInterface {
 
   // Returns whether MINIOS-A and B partitions exist on the device.
   virtual bool SupportsMiniOSPartitions() = 0;
+
+  // Returns true if the LVM stack is enabled.
+  virtual bool IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) = 0;
 
   // Return a human-readable slot name used for logging.
   static std::string SlotName(Slot slot) {

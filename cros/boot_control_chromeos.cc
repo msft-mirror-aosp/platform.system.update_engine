@@ -217,6 +217,10 @@ BootControlInterface::Slot BootControlChromeOS::GetFirstInactiveSlot() const {
   return BootControlInterface::kInvalidSlot;
 }
 
+base::FilePath BootControlChromeOS::GetBootDevicePath() const {
+  return base::FilePath{boot_disk_name_};
+}
+
 bool BootControlChromeOS::ParseDlcPartitionName(
     const std::string partition_name,
     std::string* dlc_id,
@@ -576,6 +580,17 @@ bool BootControlChromeOS::SupportsMiniOSPartitions() {
   CgptFindParams cgpt_params = {.set_label = 1, .label = kMiniOSLabelA};
   CgptFind(&cgpt_params);
   return cgpt_params.hits == 1;
+}
+
+bool BootControlChromeOS::IsLvmStackEnabled(brillo::LogicalVolumeManager* lvm) {
+  if (!is_lvm_stack_enabled_.has_value()) {
+    // Cache the value.
+    // Stateful partition will always be in partition 1 in CrOS.
+    auto pv = lvm->GetPhysicalVolume(base::FilePath(
+        utils::MakePartitionName(GetBootDevicePath().value(), 1)));
+    is_lvm_stack_enabled_ = pv.has_value() && pv->IsValid();
+  }
+  return is_lvm_stack_enabled_.value();
 }
 
 }  // namespace chromeos_update_engine
