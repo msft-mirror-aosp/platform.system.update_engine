@@ -1244,6 +1244,12 @@ void OmahaRequestAction::ActionCompleted(ErrorCode code) {
 }
 
 bool OmahaRequestAction::ShouldIgnoreUpdate(ErrorCode* error) const {
+  const auto* params = SystemState::Get()->request_params();
+  if (params->is_install()) {
+    LOG(INFO) << "Never ignore DLC installations.";
+    return false;
+  }
+
   const auto* hardware = SystemState::Get()->hardware();
   // Never ignore valid update when running from MiniOS.
   if (hardware->IsRunningFromMiniOs())
@@ -1252,7 +1258,6 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(ErrorCode* error) const {
   // Note: policy decision to not update to a version we rolled back from.
   string rollback_version =
       SystemState::Get()->payload_state()->GetRollbackVersion();
-  const auto* params = SystemState::Get()->request_params();
   if (!rollback_version.empty()) {
     LOG(INFO) << "Detected previous rollback from version " << rollback_version;
     if (rollback_version == response_.version) {
@@ -1285,9 +1290,7 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(ErrorCode* error) const {
     return true;
   }
 
-  if (params->is_install()) {
-    LOG(INFO) << "Skipping connection type check for DLC installations.";
-  } else if (!IsUpdateAllowedOverCurrentConnection(error)) {
+  if (!IsUpdateAllowedOverCurrentConnection(error)) {
     LOG(INFO) << "Update is not allowed over current connection.";
     return true;
   }
