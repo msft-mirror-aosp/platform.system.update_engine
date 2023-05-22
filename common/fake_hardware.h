@@ -111,6 +111,10 @@ class FakeHardware : public HardwareInterface {
     return is_enrollment_recovery_enabled_;
   }
 
+  bool IsConsumerSegmentSet(const base::Value* local_state) const override {
+    return is_consumer_segment_;
+  }
+
   std::unique_ptr<base::Value> ReadLocalState() const override {
     int error_code;
     std::string error_msg;
@@ -208,6 +212,10 @@ class FakeHardware : public HardwareInterface {
     is_enrollment_recovery_enabled_ = enrollment_recovery;
   }
 
+  void SetIsConsumerSegment(bool consumer_segment) {
+    is_consumer_segment_ = consumer_segment;
+  }
+
   void SetLocalState(std::string local_state) {
     local_state_contents_ = local_state;
   }
@@ -274,6 +282,7 @@ class FakeHardware : public HardwareInterface {
   bool is_oobe_enabled_{true};
   bool is_oobe_complete_{true};
   bool is_enrollment_recovery_enabled_{false};
+  bool is_consumer_segment_{false};
   std::string local_state_contents_;
   // Jan 20, 2007
   base::Time oobe_timestamp_{base::Time::FromTimeT(1169280000)};

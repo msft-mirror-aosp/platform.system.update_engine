@@ -56,6 +56,16 @@ constexpr char kNoEnrollmentRecoveryJSON[] = R"({
   "some_int": 42
 })";
 
+constexpr char kConsumerSegmentTrueJSON[] = R"({
+  "IsConsumerSegment": true
+})";
+
+constexpr char kConsumerSegmentFalseJSON[] = R"({
+  "IsConsumerSegment": false
+})";
+
+constexpr char kNoConsumerSegmentJSON[] = "";
+
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -340,6 +350,32 @@ TEST_F(HardwareChromeOSTest, GeneratePowerwashCommandWithRollbackDataCheck) {
   EXPECT_EQ(hardware_.GeneratePowerwashCommand(/*save_rollback_data=*/true),
             kExpected);
 #endif  // USE_LVM_STATEFUL_PARTITION
+}
+
+TEST_F(HardwareChromeOSTest, ConsumerSegmentFalseIfNoLocalStateFile) {
+  std::unique_ptr<base::Value> root = nullptr;
+  EXPECT_FALSE(hardware_.IsConsumerSegmentSet(root.get()));
+}
+
+TEST_F(HardwareChromeOSTest,
+       ConsumerSegmentTrueIfLocalFileWithConsumerSegmentTrue) {
+  std::unique_ptr<base::Value> root =
+      JSONToUniquePtrValue(kConsumerSegmentTrueJSON);
+  EXPECT_TRUE(hardware_.IsConsumerSegmentSet(root.get()));
+}
+
+TEST_F(HardwareChromeOSTest,
+       ConsumerSegmentFalseIfLocalFileWithConsumerSegementFalse) {
+  std::unique_ptr<base::Value> root =
+      JSONToUniquePtrValue(kConsumerSegmentFalseJSON);
+  EXPECT_FALSE(hardware_.IsConsumerSegmentSet(root.get()));
+}
+
+TEST_F(HardwareChromeOSTest,
+       ConsumerSegmentFalseIfLocalFileWithNoConsumerSegmentPath) {
+  std::unique_ptr<base::Value> root =
+      JSONToUniquePtrValue(kNoConsumerSegmentJSON);
+  EXPECT_FALSE(hardware_.IsConsumerSegmentSet(root.get()));
 }
 
 }  // namespace chromeos_update_engine

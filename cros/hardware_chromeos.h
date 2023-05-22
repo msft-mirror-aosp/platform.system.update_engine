@@ -54,6 +54,7 @@ class HardwareChromeOS final : public HardwareInterface {
   std::unique_ptr<base::Value> ReadLocalState() const override;
   bool IsEnrollmentRecoveryModeEnabled(
       const base::Value* local_state) const override;
+  bool IsConsumerSegmentSet(const base::Value* local_state) const override;
   int GetMinKernelKeyVersion() const override;
   int GetMinFirmwareKeyVersion() const override;
   int GetMaxFirmwareKeyRollforward() const override;

@@ -81,6 +81,9 @@ class HardwareInterface {
   virtual bool IsEnrollmentRecoveryModeEnabled(
       const base::Value* local_state) const = 0;
 
+  // Returns true if IsConsumerSegement is set on given Local State
+  virtual bool IsConsumerSegmentSet(const base::Value* local_state) const = 0;
+
   // Returns the minimum kernel key version that verified boot on Chrome OS
   // will allow to boot. This is the value of crossystem tpm_kernver. Returns
   // -1 on error, or if not running on Chrome OS.

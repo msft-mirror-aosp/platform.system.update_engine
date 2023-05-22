@@ -1235,6 +1235,33 @@ TEST_F(OmahaRequestActionTest, NoWallClockBasedWaitCausesNoScattering) {
   EXPECT_TRUE(response_.update_exists);
 }
 
+// Verify that non-critical updates are ignored for no consumer user during
+// OOBE.
+TEST_F(OmahaRequestActionTest, SkipNonCriticalUpdatesNoConsumerUser) {
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->SetIsConsumerSegment(false);
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  tuc_params_.expected_code = ErrorCode::kNonCriticalUpdateInOOBE;
+  tuc_params_.expected_check_result = metrics::CheckResult::kParsingError;
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUnset;
+
+  ASSERT_FALSE(TestUpdateCheck());
+
+  EXPECT_FALSE(response_.update_exists);
+}
+
+// Verify that non-critical updates are not ignored for consumer user during
+// OOBE.
+TEST_F(OmahaRequestActionTest, ValidUpdateForConsumerUserInOOBE) {
+  FakeSystemState::Get()->fake_hardware()->UnsetIsOOBEComplete();
+  FakeSystemState::Get()->fake_hardware()->SetIsConsumerSegment(true);
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_TRUE(response_.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, ZeroMaxDaysToScatterCausesNoScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_waiting_period(base::Days(2));

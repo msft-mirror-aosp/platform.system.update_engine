@@ -1275,9 +1275,14 @@ bool OmahaRequestAction::ShouldIgnoreUpdate(ErrorCode* error) const {
       (response_.deadline.empty() ||
        SystemState::Get()->payload_state()->GetRollbackHappened()) &&
       params->app_version() != kCriticalAppVersion) {
-    LOG(INFO) << "Ignoring a non-critical Omaha update before OOBE completion.";
-    *error = ErrorCode::kNonCriticalUpdateInOOBE;
-    return true;
+    if (!hardware->IsConsumerSegmentSet(hardware->ReadLocalState().get())) {
+      LOG(INFO)
+          << "Ignoring a non-critical Omaha update before OOBE completion.";
+      *error = ErrorCode::kNonCriticalUpdateInOOBE;
+      return true;
+    }
+    LOG(INFO) << "Considering a non-critical Omaha update  for consumer "
+                 "segment users before OOBE completion.";
   }
 
   if (hardware->IsEnrollmentRecoveryModeEnabled(

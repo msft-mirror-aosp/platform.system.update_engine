@@ -104,6 +104,8 @@ const char kRunningFromMiniOSLabel[] = "cros_minios";
 constexpr char kLocalStatePath[] = "/home/chronos/Local State";
 
 constexpr char kEnrollmentRecoveryRequired[] = "EnrollmentRecoveryRequired";
+
+constexpr char kConsumerSegment[] = "IsConsumerSegment";
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -484,6 +486,30 @@ bool HardwareChromeOS::IsEnrollmentRecoveryModeEnabled(
   if (!path || !path->is_bool()) {
     LOG(INFO) << "EnrollmentRecoveryRequired path does not exist in"
               << "Local State or is incorrectly formatted.";
+    return false;
+  }
+
+  return path->GetBool();
+}
+
+// Check for given given Local State the value of the consumer
+// segment. Returns true if IsConsumerSegement is set on CrOS.
+bool HardwareChromeOS::IsConsumerSegmentSet(
+    const base::Value* local_state) const {
+  if (!local_state) {
+    return false;
+  }
+
+  auto& local_state_dict = local_state->GetDict();
+  auto* path = local_state_dict.FindByDottedPath(kConsumerSegment);
+
+  if (!path) {
+    LOG(INFO) << "IsConsumerSegment path does not exist in Local State.";
+    return false;
+  }
+
+  if (!path->is_bool()) {
+    LOG(INFO) << "IsConsumerSegment is incorrectly formatted in Local State.";
     return false;
   }
 
