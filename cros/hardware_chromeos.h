@@ -23,6 +23,7 @@
 
 #include <base/time/time.h>
 #include <debugd/dbus-proxies.h>
+#include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware_interface.h"

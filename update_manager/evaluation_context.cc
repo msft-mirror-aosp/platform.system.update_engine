@@ -223,17 +223,17 @@ bool EvaluationContext::RunOnValueChangeOrTimeout(base::OnceClosure callback) {
 }
 
 string EvaluationContext::DumpContext() const {
-  base::Value variables(base::Value::Type::DICT);
+  base::Value::Dict variables;
   for (auto& it : value_cache_) {
-    variables.SetStringKey(it.first->GetName(), it.second.ToString());
+    variables.Set(it.first->GetName(), it.second.ToString());
   }
 
-  base::Value value(base::Value::Type::DICT);
-  value.SetKey("variables", std::move(variables));
-  value.SetStringKey(
+  base::Value::Dict value;
+  value.Set("variables", std::move(variables));
+  value.Set(
       "evaluation_start_wallclock",
       chromeos_update_engine::utils::ToString(evaluation_start_wallclock_));
-  value.SetStringKey(
+  value.Set(
       "evaluation_start_monotonic",
       chromeos_update_engine::utils::ToString(evaluation_start_monotonic_));
 

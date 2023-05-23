@@ -478,8 +478,8 @@ bool HardwareChromeOS::IsEnrollmentRecoveryModeEnabled(
   if (!local_state) {
     return false;
   }
-
-  auto* path = local_state->FindPath(kEnrollmentRecoveryRequired);
+  auto& local_state_dict = local_state->GetDict();
+  auto* path = local_state_dict.FindByDottedPath(kEnrollmentRecoveryRequired);
 
   if (!path || !path->is_bool()) {
     LOG(INFO) << "EnrollmentRecoveryRequired path does not exist in"
