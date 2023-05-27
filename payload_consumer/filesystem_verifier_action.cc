@@ -96,10 +96,10 @@ void FilesystemVerifierAction::PerformAction() {
   install_plan_ = GetInputObject();
 
   if (install_plan_.partitions.empty()) {
-    LOG(INFO) << "No partitions to verify.";
+    LOG(ERROR) << "No partitions to verify.";
     if (HasOutputPipe())
       SetOutputObject(install_plan_);
-    abort_action_completer.set_code(ErrorCode::kSuccess);
+    abort_action_completer.set_code(ErrorCode::kFilesystemVerifierError);
     return;
   }
   // partition_weight_[i] = total size of partitions before index i.
@@ -136,6 +136,13 @@ void FilesystemVerifierAction::Cleanup(ErrorCode code) {
   partition_fd_.reset();
   // This memory is not used anymore.
   buffer_.clear();
+  if (code == ErrorCode::kSuccess && !cancelled_) {
+    if (!dynamic_control_->FinishUpdate(install_plan_.powerwash_required)) {
+      LOG(ERROR) << "Failed to FinishUpdate("
+                 << install_plan_.powerwash_required << ")";
+      code = ErrorCode::kFilesystemVerifierError;
+    }
+  }
 
   // If we didn't write verity, partitions were maped. Releaase resource now.
   if (!install_plan_.write_verity &&

@@ -753,12 +753,17 @@ bool DeltaPerformer::ParseManifestPartitions(ErrorCode* error) {
     auto generator = partition_update_generator::Create(boot_control_,
                                                         manifest_.block_size());
     std::vector<PartitionUpdate> untouched_static_partitions;
-    TEST_AND_RETURN_FALSE(
-        generator->GenerateOperationsForPartitionsNotInPayload(
+    if (!generator->GenerateOperationsForPartitionsNotInPayload(
             install_plan_->source_slot,
             install_plan_->target_slot,
             touched_partitions,
-            &untouched_static_partitions));
+            &untouched_static_partitions)) {
+      LOG(ERROR)
+          << "Failed to generate operations for partitions not in payload "
+          << android::base::Join(touched_partitions, ", ");
+      *error = ErrorCode::kDownloadStateInitializationError;
+      return false;
+    }
     partitions_.insert(partitions_.end(),
                        untouched_static_partitions.begin(),
                        untouched_static_partitions.end());
@@ -1404,9 +1409,12 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
     return false;
   }
   Terminator::set_exit_blocked(true);
+  LOG_IF(WARNING, !prefs_->StartTransaction())
+      << "unable to start transaction in checkpointing";
+  DEFER {
+    prefs_->CancelTransaction();
+  };
   if (last_updated_operation_num_ != next_operation_num_ || force) {
-    // Resets the progress in case we die in the middle of the state update.
-    ResetUpdateProgress(prefs_, true);
     if (!signatures_message_data_.empty()) {
       // Save the signature blob because if the update is interrupted after the
       // download phase we don't go through this path anymore. Some alternatives
@@ -1458,6 +1466,9 @@ bool DeltaPerformer::CheckpointUpdateProgress(bool force) {
   }
   TEST_AND_RETURN_FALSE(
       prefs_->SetInt64(kPrefsUpdateStateNextOperation, next_operation_num_));
+  if (!prefs_->SubmitTransaction()) {
+    LOG(ERROR) << "Failed to submit transaction in checkpointing";
+  }
   return true;
 }
 
