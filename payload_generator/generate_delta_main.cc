@@ -455,6 +455,11 @@ DEFINE_string(erofs_compression_param,
               "Compression parameter passed to mkfs.erofs's -z option. "
               "Example: lz4 lz4hc,9");
 
+DEFINE_int64(max_threads,
+             0,
+             "The maximum number of threads allowed for generating "
+             "ota.");
+
 void RoundDownPartitions(const ImageConfig& config) {
   for (const auto& part : config.partitions) {
     if (part.path.empty()) {
@@ -726,23 +731,8 @@ int Main(int argc, char** argv) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
     if (payload_config.is_delta) {
-      brillo::KeyValueStore store;
-      uint32_t minor_version{};
-      bool minor_version_found = false;
-      for (const PartitionConfig& part : payload_config.source.partitions) {
-        if (part.fs_interface && part.fs_interface->LoadSettings(&store) &&
-            utils::GetMinorVersion(store, &minor_version)) {
-          payload_config.version.minor = minor_version;
-          minor_version_found = true;
-          LOG(INFO) << "Auto-detected minor_version="
-                    << payload_config.version.minor;
-          break;
-        }
-      }
-      if (!minor_version_found) {
-        LOG(FATAL) << "Failed to detect the minor version.";
-        return 1;
-      }
+      LOG(FATAL) << "Minor version is required for delta update!";
+      return 1;
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
       LOG(INFO) << "Using non-delta minor_version="
@@ -763,6 +753,8 @@ int Main(int argc, char** argv) {
   payload_config.max_timestamp = FLAGS_max_timestamp;
 
   payload_config.security_patch_level = FLAGS_security_patch_level;
+
+  payload_config.max_threads = FLAGS_max_threads;
 
   if (!FLAGS_partition_timestamps.empty()) {
     CHECK(ParsePerPartitionTimestamps(FLAGS_partition_timestamps,
