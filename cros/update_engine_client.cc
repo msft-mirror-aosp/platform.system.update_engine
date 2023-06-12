@@ -382,7 +382,7 @@ int UpdateEngineClient::ProcessFlags() {
     if (client_->ResetStatus()) {
       LOG(INFO) << "ResetStatus succeeded; to undo partition table changes "
                    "run:\n"
-                   "(D=$(rootdev -d) P=$(rootdev -s); cgpt p -i$(($(echo "
+                   "(D=$(rootdev -s -d) P=$(rootdev -s); cgpt p -i$(($(echo "
                    "${P#$D} | sed 's/^[^0-9]*//')-1)) $D;)";
     } else {
       LOG(ERROR) << "ResetStatus failed";
