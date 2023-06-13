@@ -20,9 +20,9 @@
 #include <utility>
 #include <vector>
 
-#include <base/guid.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
+#include <base/uuid.h>
 #include <gtest/gtest.h>
 
 #include "update_engine/cros/fake_system_state.h"
@@ -169,11 +169,12 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlRequestIdTest) {
       FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
   // A valid |request_id| is either a GUID version 4 or empty string.
   if (!request_id.empty())
-    EXPECT_TRUE(base::IsValidGUID(request_id));
+    EXPECT_TRUE(base::Uuid::ParseLowercase(request_id).is_valid());
 }
 
 TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
-  const string gen_session_id = base::GenerateGUID();
+  const string gen_session_id =
+      base::Uuid::GenerateRandomV4().AsLowercaseString();
   OmahaRequestBuilderXml omaha_request{
       nullptr, false, false, 0, 0, 0, gen_session_id};
   const string request_xml = omaha_request.GetRequest();
@@ -182,7 +183,7 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlSessionIdTest) {
       FindAttributeKeyValueInXml(request_xml, key, kGuidSize);
   // A valid |session_id| is either a GUID version 4 or empty string.
   if (!session_id.empty()) {
-    EXPECT_TRUE(base::IsValidGUID(session_id));
+    EXPECT_TRUE(base::Uuid::ParseLowercase(session_id).is_valid());
   }
   EXPECT_EQ(gen_session_id, session_id);
 }

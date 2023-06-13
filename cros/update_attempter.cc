@@ -851,7 +851,7 @@ void UpdateAttempter::BuildUpdateActions(const UpdateCheckParams& params) {
 
   // The session ID needs to be kept throughout the update flow. The value
   // of the session ID will reset/update only when it is a new update flow.
-  session_id_ = base::GenerateGUID();
+  session_id_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
 
   // Actions:
   auto update_check_fetcher = std::make_unique<LibcurlHttpFetcher>(

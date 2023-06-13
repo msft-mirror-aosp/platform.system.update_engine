@@ -26,8 +26,8 @@
 #include <vector>
 
 #include <base/functional/bind.h>
-#include <base/guid.h>
 #include <base/time/time.h>
+#include <base/uuid.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
 
 #include "update_engine/certificate_checker.h"

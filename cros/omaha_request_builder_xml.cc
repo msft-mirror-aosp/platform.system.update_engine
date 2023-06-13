@@ -22,13 +22,13 @@
 #include <numeric>
 #include <string>
 
-#include <base/guid.h>
 #include <base/logging.h>
 #include <base/notreached.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
 #include <base/time/time.h>
+#include <base/uuid.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/cros_healthd_interface.h"
@@ -450,7 +450,9 @@ string OmahaRequestBuilderXml::GetRequest() const {
       " protocol=\"3.0\" updater=\"%s\" updaterversion=\"%s\""
       " installsource=\"%s\" ismachine=\"1\" recoverykeyversion=\"%s\" "
       "%s>\n%s%s%s</request>\n",
-      base::GenerateGUID().c_str() /* requestid */,
+      base::Uuid::GenerateRandomV4()
+          .AsLowercaseString()
+          .c_str() /* requestid */,
       session_id_.c_str(),
       constants::kOmahaUpdaterID,
       kOmahaUpdaterVersion,
