@@ -1728,6 +1728,11 @@ void UpdateAttempter::InvalidateUpdate() {
         << "Could not delete update completed markers. Continuing anyway.";
     success = false;
   }
+  LOG(INFO) << "Invalidating firmware update.";
+  if (!SystemState::Get()->hardware()->ResetFWTryNextSlot()) {
+    LOG(WARNING) << "Could not reset firmware slot. Continuing anyway.";
+    success = false;
+  }
 
   SystemState::Get()->metrics_reporter()->ReportInvalidatedUpdate(success);
 }

@@ -187,6 +187,10 @@ class HardwareInterface {
   // Returns true if rootfs verification is enabled.
   // e.g. "dm_verity.dev_wait" is set to 1 in the kernel commandline.
   virtual bool IsRootfsVerificationEnabled() const = 0;
+
+  // Resets a RW firmware partition slot to try on next boot to a current slot.
+  // Returns false on failure, true on success.
+  virtual bool ResetFWTryNextSlot() = 0;
 };
 
 }  // namespace chromeos_update_engine

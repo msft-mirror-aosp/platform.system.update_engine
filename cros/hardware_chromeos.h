@@ -24,6 +24,7 @@
 #include <base/time/time.h>
 #include <debugd/dbus-proxies.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
+#include <libcrossystem/crossystem.h>
 
 #include "update_engine/common/error_code.h"
 #include "update_engine/common/hardware_interface.h"
@@ -86,11 +87,37 @@ class HardwareChromeOS final : public HardwareInterface {
     non_volatile_path_ = path;
   }
 
+  bool ResetFWTryNextSlot() override;
+
  private:
   friend class HardwareChromeOSTest;
   FRIEND_TEST(HardwareChromeOSTest, GeneratePowerwashCommandCheck);
   FRIEND_TEST(HardwareChromeOSTest,
               GeneratePowerwashCommandWithRollbackDataCheck);
+  FRIEND_TEST(HardwareChromeOSFWTest,
+              ResetsFWTryNextSlotProperlyIfValidMainFwAct);
+  FRIEND_TEST(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfInvalidMainFwAct);
+  FRIEND_TEST(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfMissingMainFwAct);
+  FRIEND_TEST(HardwareChromeOSTest,
+              ResetFWTryNextSlotFailsIfSettingResultFlagFails);
+  FRIEND_TEST(HardwareChromeOSTest,
+              ResetFWTryNextSlotFailsIfSettingTryCountFails);
+
+  // Returns a currently active firmware slot.
+  // `kFWSlotA` or `kFWSlotB` most of the time, though can be "recovery" or
+  // "error".
+  std::optional<std::string> GetMainFWAct() const;
+  // Sets a RW firmware partition slot to try on next boot to
+  // |target_slot|.
+  // Expects only `kFWSlotA` or `kFWSlotB` as |target_slot|.
+  // Returns false on failure.
+  bool SetFWTryNextSlot(base::StringPiece target_slot);
+  // Marks current RW firmware boot result as success.
+  // Returns false on failure.
+  bool SetFWResultSuccessful();
+  // Sets a number of times to try a next boot RW partition slot to |count|.
+  // Returns false on failure.
+  bool SetFWTryCount(int count);
 
   // Load the update manager config flags (is_oobe_enabled flag) from the
   // appropriate location based on whether we are in a normal mode boot (as
@@ -107,6 +134,7 @@ class HardwareChromeOS final : public HardwareInterface {
   base::FilePath non_volatile_path_;
 
   std::unique_ptr<org::chromium::debugdProxyInterface> debugd_proxy_;
+  std::unique_ptr<crossystem::Crossystem> crossystem_;
 };
 
 }  // namespace chromeos_update_engine

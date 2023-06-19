@@ -262,6 +262,7 @@ static_library("libupdate_engine") {
   all_dependent_pkg_deps = [
     "dbus-1",
     "expat",
+    "libcrossystem",
     "libcurl",
     "libdebugd-client",
     "libmetrics",
@@ -596,6 +597,7 @@ if (use.test) {
     pkg_deps = [
       "libbrillo-test",
       "libchrome-test",
+      "libcrossystem-test",
       "libdebugd-client-test",
       "libpower_manager-client-test",
       "libsession_manager-client-test",

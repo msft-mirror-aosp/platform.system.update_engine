@@ -17,12 +17,15 @@
 #include "update_engine/cros/hardware_chromeos.h"
 
 #include <memory>
+#include <utility>
 
 #include <base/files/file_util.h>
 #include <base/files/scoped_temp_dir.h>
 #include <base/json/json_string_value_serializer.h>
 #include <brillo/file_utils.h>
 #include <gtest/gtest.h>
+#include <libcrossystem/crossystem.h>
+#include <libcrossystem/crossystem_fake.h>
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/fake_hardware.h"
@@ -75,6 +78,12 @@ class HardwareChromeOSTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(root_dir_.CreateUniqueTempDir());
     FakeSystemState::CreateInstance();
+
+    auto fake_crossystem_impl =
+        std::make_unique<crossystem::fake::CrossystemFake>();
+    auto crossystem = std::make_unique<crossystem::Crossystem>(
+        std::move(fake_crossystem_impl));
+    hardware_.crossystem_ = std::move(crossystem);
   }
 
   void WriteStatefulConfig(const string& config) {
@@ -376,6 +385,86 @@ TEST_F(HardwareChromeOSTest,
   std::unique_ptr<base::Value> root =
       JSONToUniquePtrValue(kNoConsumerSegmentJSON);
   EXPECT_FALSE(hardware_.IsConsumerSegmentSet(root.get()));
+}
+
+struct FWTestCase {
+  std::string mainfw_act;
+  std::string fw_try_next;
+};
+
+class HardwareChromeOSFWTest : public HardwareChromeOSTest,
+                               public testing::WithParamInterface<FWTestCase> {
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    HardwareChromeOSFWTest,
+    testing::Values(FWTestCase{.mainfw_act = "A", .fw_try_next = "B"},
+                    FWTestCase{.mainfw_act = "B", .fw_try_next = "A"}));
+
+TEST_P(HardwareChromeOSFWTest, ResetsFWTryNextSlotProperlyIfValidMainFwAct) {
+  auto fw_test_case = GetParam();
+
+  hardware_.crossystem_->VbSetSystemPropertyInt("fw_try_count", 5);
+  hardware_.crossystem_->VbSetSystemPropertyString("mainfw_act",
+                                                   fw_test_case.mainfw_act);
+  hardware_.crossystem_->VbSetSystemPropertyString("fw_try_next",
+                                                   fw_test_case.fw_try_next);
+  hardware_.crossystem_->VbSetSystemPropertyString("fw_result", "unknown");
+
+  bool result = hardware_.ResetFWTryNextSlot();
+
+  ASSERT_TRUE(result);
+  EXPECT_EQ(hardware_.crossystem_->VbGetSystemPropertyString("mainfw_act"),
+            fw_test_case.mainfw_act);
+  EXPECT_EQ(hardware_.crossystem_->VbGetSystemPropertyString("fw_try_next"),
+            hardware_.crossystem_->VbGetSystemPropertyString("mainfw_act"));
+  EXPECT_EQ(hardware_.crossystem_->VbGetSystemPropertyInt("fw_try_count"), 0);
+  EXPECT_EQ(hardware_.crossystem_->VbGetSystemPropertyString("fw_result"),
+            "success");
+}
+
+TEST_F(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfInvalidMainFwAct) {
+  hardware_.crossystem_->VbSetSystemPropertyString("mainfw_act", "recovery");
+
+  bool result = hardware_.ResetFWTryNextSlot();
+
+  ASSERT_FALSE(result);
+}
+
+TEST_F(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfMissingMainFwAct) {
+  auto fake_crossystem = std::make_unique<crossystem::fake::CrossystemFake>();
+  fake_crossystem->UnsetSystemPropertyValue("mainfw_act");
+  hardware_.crossystem_ =
+      std::make_unique<crossystem::Crossystem>(std::move(fake_crossystem));
+
+  bool result = hardware_.ResetFWTryNextSlot();
+
+  ASSERT_FALSE(result);
+}
+
+TEST_F(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfSettingResultFlagFails) {
+  auto fake_crossystem = std::make_unique<crossystem::fake::CrossystemFake>();
+  fake_crossystem->SetSystemPropertyReadOnlyStatus("fw_result", true);
+  hardware_.crossystem_ =
+      std::make_unique<crossystem::Crossystem>(std::move(fake_crossystem));
+  hardware_.crossystem_->VbSetSystemPropertyString("mainfw_act", "A");
+
+  bool result = hardware_.ResetFWTryNextSlot();
+
+  ASSERT_FALSE(result);
+}
+
+TEST_F(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfSettingTryCountFails) {
+  auto fake_crossystem = std::make_unique<crossystem::fake::CrossystemFake>();
+  fake_crossystem->SetSystemPropertyReadOnlyStatus("fw_try_count", true);
+  hardware_.crossystem_ =
+      std::make_unique<crossystem::Crossystem>(std::move(fake_crossystem));
+  hardware_.crossystem_->VbSetSystemPropertyString("mainfw_act", "A");
+
+  bool result = hardware_.ResetFWTryNextSlot();
+
+  ASSERT_FALSE(result);
 }
 
 }  // namespace chromeos_update_engine

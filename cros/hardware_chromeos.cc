@@ -27,6 +27,7 @@
 #include <brillo/blkdev_utils/lvm.h>
 #include <brillo/key_value_store.h>
 #include <debugd/dbus-constants.h>
+#include <libcrossystem/crossystem.h>
 #include <vboot/crossystem.h>
 
 extern "C" {
@@ -106,6 +107,22 @@ constexpr char kLocalStatePath[] = "/home/chronos/Local State";
 constexpr char kEnrollmentRecoveryRequired[] = "EnrollmentRecoveryRequired";
 
 constexpr char kConsumerSegment[] = "IsConsumerSegment";
+
+// Firmware slot to try next (A or B).
+constexpr char kFWTryNextFlag[] = "fw_try_next";
+
+// Current main firmware.
+constexpr char kMainFWActFlag[] = "mainfw_act";
+
+// Firmware boot result this boot.
+constexpr char kFWResultFlag[] = "fw_result";
+
+// Number of times to try to boot `kFWTryNextFlag` slot.
+constexpr char kFWTryCountFlag[] = "fw_try_count";
+
+// Firmware partition slots.
+constexpr char kFWSlotA[] = "A";
+constexpr char kFWSlotB[] = "B";
 }  // namespace
 
 namespace chromeos_update_engine {
@@ -128,6 +145,7 @@ void HardwareChromeOS::Init() {
   LoadConfig("" /* root_prefix */, IsNormalBootMode());
   debugd_proxy_.reset(
       new org::chromium::debugdProxy(DBusConnection::Get()->GetDBus()));
+  crossystem_.reset(new crossystem::Crossystem());
 }
 
 bool HardwareChromeOS::IsOfficialBuild() const {
@@ -554,6 +572,71 @@ bool HardwareChromeOS::IsRootfsVerificationEnabled() const {
     return false;
   }
   return kernel_cmd_line.find("dm_verity.dev_wait=1") != std::string::npos;
+}
+
+bool HardwareChromeOS::ResetFWTryNextSlot() {
+  const std::optional<std::string> main_fw_act = GetMainFWAct();
+  const int fw_try_count = 0;
+
+  if (!main_fw_act) {
+    return false;
+  }
+
+  return SetFWTryNextSlot(*main_fw_act) && SetFWResultSuccessful() &&
+         SetFWTryCount(fw_try_count);
+}
+
+bool HardwareChromeOS::SetFWTryNextSlot(base::StringPiece target_slot) {
+  DCHECK(crossystem_);
+
+  if (target_slot != kFWSlotA && target_slot != kFWSlotB) {
+    LOG(ERROR) << "Invalid target_slot " << target_slot;
+    return false;
+  }
+
+  if (!crossystem_->VbSetSystemPropertyString(kFWTryNextFlag,
+                                              target_slot.data())) {
+    LOG(ERROR) << "Unable to set " << kFWTryNextFlag << " to "
+               << target_slot.data();
+    return false;
+  }
+
+  return true;
+}
+
+std::optional<std::string> HardwareChromeOS::GetMainFWAct() const {
+  DCHECK(crossystem_);
+
+  const std::optional<std::string> main_fw_act =
+      crossystem_->VbGetSystemPropertyString(kMainFWActFlag);
+  if (!main_fw_act) {
+    LOG(ERROR) << "Unable to get a current FW slot from " << kMainFWActFlag;
+    return std::nullopt;
+  }
+
+  return *main_fw_act;
+}
+
+bool HardwareChromeOS::SetFWResultSuccessful() {
+  DCHECK(crossystem_);
+
+  if (!crossystem_->VbSetSystemPropertyString(kFWResultFlag, "success")) {
+    LOG(ERROR) << "Unable to set " << kFWResultFlag << " to success";
+    return false;
+  }
+
+  return true;
+}
+
+bool HardwareChromeOS::SetFWTryCount(int count) {
+  DCHECK(crossystem_);
+
+  if (!crossystem_->VbSetSystemPropertyInt(kFWTryCountFlag, count)) {
+    LOG(ERROR) << "Unable to set " << kFWTryCountFlag << " to " << count;
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace chromeos_update_engine

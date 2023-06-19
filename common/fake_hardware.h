@@ -274,6 +274,8 @@ class FakeHardware : public HardwareInterface {
     return rootfs_verification_enabled_;
   }
 
+  bool ResetFWTryNextSlot() override { return true; };
+
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};
