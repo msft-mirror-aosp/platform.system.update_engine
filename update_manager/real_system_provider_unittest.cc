@@ -135,4 +135,12 @@ TEST_F(UmRealSystemProviderTest, KioskRequiredPlatformVersionRepeatedFailure) {
       std::string(""), provider_->var_kiosk_required_platform_version());
 }
 
+TEST_F(UmRealSystemProviderTest, IsUpdating) {
+  UmTestUtils::ExpectVariableHasValue(false, provider_->var_is_updating());
+  FakeSystemState::Get()->set_update_attempter(nullptr);
+  EXPECT_CALL(*FakeSystemState::Get()->mock_update_attempter(), IsUpdating())
+      .WillOnce(Return(true));
+  UmTestUtils::ExpectVariableHasValue(true, provider_->var_is_updating());
+}
+
 }  // namespace chromeos_update_manager

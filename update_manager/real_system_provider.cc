@@ -127,8 +127,11 @@ bool RealSystemProvider::Init() {
       "chromeos_version",
       base::Version(SystemState::Get()->request_params()->app_version())));
 
-  var_is_updating_.reset(new ConstCopyVariable<bool>(
-      "is_updating", SystemState::Get()->update_attempter()->IsUpdating()));
+  var_is_updating_.reset(new CallCopyVariable<bool>(
+      "is_updating",
+      base::BindRepeating(
+          &chromeos_update_engine::UpdateAttempter::IsUpdating,
+          base::Unretained(SystemState::Get()->update_attempter()))));
 
   var_is_resuming_from_hibernate_.reset(new CallCopyVariable<bool>(
       "is_resuming_from_hibernate",
