@@ -25,6 +25,7 @@
 #include <curl/curl.h>
 
 #include <base/files/file_descriptor_watcher_posix.h>
+#include <base/files/scoped_file.h>
 #include <base/logging.h>
 #include <brillo/message_loops/message_loop.h>
 
@@ -269,8 +270,11 @@ class LibcurlHttpFetcher : public HttpFetcher {
   // the message loop. libcurl may open/close descriptors and switch their
   // directions so maintain two separate lists so that watch conditions can be
   // set appropriately.
-  std::map<int, std::unique_ptr<base::FileDescriptorWatcher::Controller>>
-      fd_controller_maps_[2];
+  struct WatchedFd {
+    base::ScopedFD fd;
+    std::unique_ptr<base::FileDescriptorWatcher::Controller> controller;
+  };
+  std::map<int, WatchedFd> fd_controller_maps_[2];
 
   // The TaskId of the timer we're waiting on. kTaskIdNull if we are not waiting
   // on it.

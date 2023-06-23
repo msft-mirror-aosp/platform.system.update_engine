@@ -727,21 +727,29 @@ void LibcurlHttpFetcher::SetupMessageLoopSources() {
       if (tracked)
         continue;
 
-      // Track a new fd.
+      // Track a new fd. Instead of watching the original fd we watch a
+      // duplicate so we can ensure the fd outlives the file descriptor watcher.
       switch (t) {
-        case 0:  // Read
-          fd_controller_maps_[t][fd] =
+        case 0: {  // Read
+          int watched_fd = HANDLE_EINTR(dup(fd));
+          fd_controller_maps_[t][fd] = WatchedFd{
+              base::ScopedFD(watched_fd),
               base::FileDescriptorWatcher::WatchReadable(
-                  fd,
+                  watched_fd,
                   base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
-                                      base::Unretained(this)));
+                                      base::Unretained(this)))};
           break;
-        case 1:  // Write
-          fd_controller_maps_[t][fd] =
+        }
+        case 1: {  // Write
+          int watched_fd = HANDLE_EINTR(dup(fd));
+          fd_controller_maps_[t][fd] = WatchedFd{
+              base::ScopedFD(watched_fd),
               base::FileDescriptorWatcher::WatchWritable(
-                  fd,
+                  watched_fd,
                   base::BindRepeating(&LibcurlHttpFetcher::CurlPerformOnce,
-                                      base::Unretained(this)));
+                                      base::Unretained(this)))};
+          break;
+        }
       }
       static int io_counter = 0;
       io_counter++;
