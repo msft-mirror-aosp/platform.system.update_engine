@@ -435,6 +435,10 @@ bool PayloadState::ShouldBackoffDownload() {
     LOG(INFO) << "Payload backoff disabled for interactive update checks.";
     return false;
   }
+  if (SystemState::Get()->request_params()->is_install()) {
+    LOG(INFO) << "Payload backoff disabled for installations.";
+    return false;
+  }
   for (const auto& package : response_.packages) {
     if (package.is_delta) {
       // If delta payloads fail, we want to fallback quickly to full payloads as
