@@ -53,8 +53,6 @@ class DevicePolicyProvider : public Provider {
 
   virtual Variable<std::string>* var_target_version_prefix() = 0;
 
-  virtual Variable<std::string>* var_target_version_selector() = 0;
-
   // Variable returning what should happen if the target_version_prefix is
   // earlier than the current Chrome OS version.
   virtual Variable<RollbackToTargetVersion>*

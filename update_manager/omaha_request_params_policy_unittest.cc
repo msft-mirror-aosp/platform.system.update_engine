@@ -102,15 +102,6 @@ TEST_F(UmOmahaRequestParamsPolicyTest, QuickFixBuildToken) {
             kToken);
 }
 
-TEST_F(UmOmahaRequestParamsPolicyTest, TargetVersionSelector) {
-  constexpr char kTargetVersionSelector[] = "foo,4-target-version-selector";
-  fake_state_.device_policy_provider()->var_target_version_selector()->reset(
-      new std::string(kTargetVersionSelector));
-  EXPECT_EQ(EvalStatus::kSucceeded, evaluator_->Evaluate());
-  EXPECT_EQ(FakeSystemState::Get()->request_params()->target_version_selector(),
-            kTargetVersionSelector);
-}
-
 TEST_F(UmOmahaRequestParamsPolicyTest, ReleaseLtsTag) {
   constexpr char kReleaseTag[] = "foo-release-tag";
   fake_state_.device_policy_provider()->var_release_lts_tag()->reset(

@@ -1760,8 +1760,6 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   request_params_.set_current_channel("unittest_track&lt;");
   request_params_.set_target_channel("unittest_track&lt;");
   request_params_.set_release_lts_tag("unittest_hint&lt;");
-  request_params_.set_target_version_selector(
-      "unittest_selector&lt;0,1626155736-");
   request_params_.set_hwid("<OEM MODEL>");
   fake_prefs_->SetString(kPrefsOmahaCohort, "evil\nstring");
   fake_prefs_->SetString(kPrefsOmahaCohortHint, "evil&string\\");
@@ -1783,8 +1781,6 @@ TEST_F(OmahaRequestActionTest, XmlEncodeIsUsedForParams) {
   EXPECT_EQ(string::npos, post_str_.find("unittest_track&lt;"));
   EXPECT_NE(string::npos, post_str_.find("unittest_hint&amp;lt;"));
   EXPECT_EQ(string::npos, post_str_.find("unittest_hint&lt;"));
-  EXPECT_NE(string::npos, post_str_.find("unittest_selector&amp;lt;"));
-  EXPECT_EQ(string::npos, post_str_.find("unittest_selector&lt;0,1626155736-"));
   EXPECT_NE(string::npos, post_str_.find("&lt;OEM MODEL&gt;"));
   EXPECT_EQ(string::npos, post_str_.find("<OEM MODEL>"));
   EXPECT_NE(string::npos, post_str_.find("cohort=\"evil\nstring\""));

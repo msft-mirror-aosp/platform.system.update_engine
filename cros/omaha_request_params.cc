@@ -163,8 +163,8 @@ bool OmahaRequestParams::Init(const string& app_version,
 
   target_version_prefix_ = params.target_version_prefix;
 
-  target_version_selector_.clear();
   release_lts_tag_.clear();
+
   quick_fix_build_token_.clear();
 
   rollback_allowed_ = false;

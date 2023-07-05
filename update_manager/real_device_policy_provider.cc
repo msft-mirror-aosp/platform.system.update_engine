@@ -265,8 +265,6 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
   UpdateVariable(&var_update_disabled_, &DevicePolicy::GetUpdateDisabled);
   UpdateVariable(&var_target_version_prefix_,
                  &DevicePolicy::GetTargetVersionPrefix);
-  UpdateVariable(&var_target_version_selector_,
-                 &DevicePolicy::GetTargetVersionSelector);
   UpdateVariable(&var_rollback_to_target_version_,
                  &RealDevicePolicyProvider::ConvertRollbackToTargetVersion);
   UpdateVariable(&var_rollback_allowed_milestones_,

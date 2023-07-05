@@ -73,12 +73,6 @@ EvalStatus OmahaRequestParamsPolicy::Evaluate(EvaluationContext* ec,
     request_params->set_release_lts_tag(*release_lts_tag_p);
   }
 
-  const string* target_version_selector_p =
-      ec->GetValue(dp_provider->var_target_version_selector());
-  if (target_version_selector_p) {
-    request_params->set_target_version_selector(*target_version_selector_p);
-  }
-
   // Policy always overwrites whether rollback is allowed by the kiosk app
   // manifest.
   const RollbackToTargetVersion* rollback_to_target_version_p =

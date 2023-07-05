@@ -158,7 +158,6 @@ TEST_F(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyEmptyVariables) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_release_lts_tag());
   UmTestUtils::ExpectVariableNotSet(provider_->var_update_disabled());
   UmTestUtils::ExpectVariableNotSet(provider_->var_target_version_prefix());
-  UmTestUtils::ExpectVariableNotSet(provider_->var_target_version_selector());
   UmTestUtils::ExpectVariableNotSet(
       provider_->var_rollback_to_target_version());
   UmTestUtils::ExpectVariableNotSet(
@@ -226,21 +225,6 @@ TEST_F(UmRealDevicePolicyProviderTest, HasOwnerConverted) {
   // Has a device owner.
   provider_->RefreshDevicePolicy();
   UmTestUtils::ExpectVariableHasValue(true, provider_->var_has_owner());
-}
-
-TEST_F(UmRealDevicePolicyProviderTest, TargetVersionSelector) {
-  SetUpExistentDevicePolicy();
-
-  const std::string kTargetVersionSelectorValue = "0,1626155736-";
-  EXPECT_CALL(mock_device_policy_, GetTargetVersionSelector(_))
-      .Times(2)
-      .WillRepeatedly(
-          DoAll(SetArgPointee<0>(kTargetVersionSelectorValue), Return(true)));
-  EXPECT_TRUE(provider_->Init());
-  loop_.RunOnce(false);
-
-  UmTestUtils::ExpectVariableHasValue(kTargetVersionSelectorValue,
-                                      provider_->var_target_version_selector());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {

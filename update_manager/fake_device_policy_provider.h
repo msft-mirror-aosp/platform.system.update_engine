@@ -56,10 +56,6 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_target_version_prefix_;
   }
 
-  FakeVariable<std::string>* var_target_version_selector() override {
-    return &var_target_version_selector_;
-  }
-
   FakeVariable<RollbackToTargetVersion>* var_rollback_to_target_version()
       override {
     return &var_rollback_to_target_version_;
@@ -126,8 +122,6 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
   FakeVariable<bool> var_update_disabled_{"update_disabled", kVariableModePoll};
   FakeVariable<std::string> var_target_version_prefix_{"target_version_prefix",
                                                        kVariableModePoll};
-  FakeVariable<std::string> var_target_version_selector_{
-      "target_version_selector", kVariableModePoll};
   FakeVariable<RollbackToTargetVersion> var_rollback_to_target_version_{
       "rollback_to_target_version", kVariableModePoll};
   FakeVariable<int> var_rollback_allowed_milestones_{

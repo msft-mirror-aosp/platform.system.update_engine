@@ -149,14 +149,6 @@ class OmahaRequestParams {
     return target_version_prefix_;
   }
 
-  inline void set_target_version_selector(const std::string& selector) {
-    target_version_selector_ = selector;
-  }
-
-  inline std::string target_version_selector() const {
-    return target_version_selector_;
-  }
-
   inline std::string release_lts_tag() const { return release_lts_tag_; }
   inline void set_release_lts_tag(const std::string& tag) {
     release_lts_tag_ = tag;
@@ -425,10 +417,6 @@ class OmahaRequestParams {
   // Prefix of the target OS version that the enterprise wants this device
   // to be pinned to. It's empty otherwise.
   std::string target_version_prefix_;
-
-  // The value defining target OS version for this device to update to.
-  // Normally is set by |OmahaRequestParamsPolicy|.
-  std::string target_version_selector_;
 
   // Whether the client is accepting rollback images defined by policy.
   // Normally ss set by |OmahaRequestParamsPolicy|.
