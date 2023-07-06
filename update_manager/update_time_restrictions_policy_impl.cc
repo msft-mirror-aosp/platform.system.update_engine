@@ -70,6 +70,7 @@ EvalStatus UpdateTimeRestrictionsPolicyImpl::Evaluate(
   }
   for (const auto& interval : *intervals) {
     if (interval.InRange(now)) {
+      LOG(INFO) << "Deferring as time interval is within range.";
       policy_data->set_error_code(ErrorCode::kOmahaUpdateDeferredPerPolicy);
       return EvalStatus::kSucceeded;
     }
