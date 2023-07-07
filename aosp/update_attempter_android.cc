@@ -55,6 +55,7 @@
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
+#include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
 #ifndef _UE_SIDELOAD
@@ -281,6 +282,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.powerwash_required =
       GetHeaderAsBool(headers[kPayloadPropertyPowerwash], false);
 
+  if (!IsProductionBuild()) {
+    install_plan_.disable_vabc =
+        GetHeaderAsBool(headers[kPayloadDisableVABC], false);
+  }
+
   install_plan_.switch_slot_on_reboot =
       GetHeaderAsBool(headers[kPayloadPropertySwitchSlotOnReboot], true);
 
@@ -347,8 +353,14 @@ bool UpdateAttempterAndroid::ApplyPayload(
               << headers[kPayloadPropertyNetworkProxy];
     fetcher->SetProxies({headers[kPayloadPropertyNetworkProxy]});
   }
-  if (!headers[kPayloadDisableVABC].empty()) {
-    install_plan_.disable_vabc = true;
+  if (!headers[kPayloadVABCNone].empty()) {
+    install_plan_.vabc_none = true;
+  }
+  if (!headers[kPayloadEnableThreading].empty()) {
+    install_plan_.enable_threading = true;
+  }
+  if (!headers[kPayloadBatchedWrites].empty()) {
+    install_plan_.batched_writes = true;
   }
 
   BuildUpdateActions(fetcher);
@@ -416,6 +428,13 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
     return LogAndSetError(
         error, FROM_HERE, "Already processing an update, cancel it first.");
   }
+  if (status_ != UpdateStatus::IDLE &&
+      status_ != UpdateStatus::UPDATED_NEED_REBOOT) {
+    return LogAndSetError(error,
+                          FROM_HERE,
+                          "Status reset not allowed in this state, please "
+                          "cancel on going OTA first.");
+  }
 
   if (apex_handler_android_ != nullptr) {
     LOG(INFO) << "Cleaning up reserved space for compressed APEX (if any)";
@@ -431,30 +450,18 @@ bool UpdateAttempterAndroid::ResetStatus(brillo::ErrorPtr* error) {
                           "Failed to reset the status because "
                           "ClearUpdateCompletedMarker() failed");
   }
-
+  if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
+    if (!resetShouldSwitchSlotOnReboot(error)) {
+      LOG(INFO) << "Failed to reset slot switch.";
+      return false;
+    }
+    LOG(INFO) << "Slot switch reset successful";
+  }
   if (!boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_)) {
     LOG(WARNING) << "Failed to reset snapshots. UpdateStatus is IDLE but"
                  << "space might not be freed.";
   }
-  switch (status_) {
-    case UpdateStatus::IDLE: {
-      return true;
-    }
-
-    case UpdateStatus::UPDATED_NEED_REBOOT: {
-      const bool ret_value = resetShouldSwitchSlotOnReboot(error);
-      if (ret_value) {
-        LOG(INFO) << "Reset status successful";
-      }
-      return ret_value;
-    }
-
-    default:
-      return LogAndSetError(
-          error,
-          FROM_HERE,
-          "Reset not allowed in this state. Cancel the ongoing update first");
-  }
+  return true;
 }
 
 bool UpdateAttempterAndroid::VerifyPayloadParseManifest(
@@ -814,9 +821,10 @@ void UpdateAttempterAndroid::BuildUpdateActions(HttpFetcher* fetcher) {
 }
 
 bool UpdateAttempterAndroid::WriteUpdateCompletedMarker() {
-  LOG(INFO) << "Writing update complete marker.";
   string boot_id;
   TEST_AND_RETURN_FALSE(utils::GetBootId(&boot_id));
+  LOG(INFO) << "Writing update complete marker, slot "
+            << boot_control_->GetCurrentSlot() << ", boot id: " << boot_id;
   TEST_AND_RETURN_FALSE(
       prefs_->SetString(kPrefsUpdateCompletedOnBootId, boot_id));
   TEST_AND_RETURN_FALSE(
@@ -831,7 +839,7 @@ bool UpdateAttempterAndroid::ClearUpdateCompletedMarker() {
   return true;
 }
 
-bool UpdateAttempterAndroid::UpdateCompletedOnThisBoot() {
+bool UpdateAttempterAndroid::UpdateCompletedOnThisBoot() const {
   // In case of an update_engine restart without a reboot, we stored the boot_id
   // when the update was completed by setting a pref, so we can check whether
   // the last update was on this boot or a previous one.
@@ -939,7 +947,9 @@ bool UpdateAttempterAndroid::OTARebootSucceeded() const {
       prefs_->GetString(kPrefsPreviousVersion, &previous_version));
   if (previous_slot != current_slot) {
     LOG(INFO) << "Detected a slot switch, OTA succeeded, device updated from "
-              << previous_version << " to " << current_version;
+              << previous_version << " to " << current_version
+              << ", previous slot: " << previous_slot
+              << " current slot: " << current_slot;
     if (previous_version == current_version) {
       LOG(INFO) << "Previous version is the same as current version, this is "
                    "possibly a self-OTA.";
@@ -961,7 +971,8 @@ OTAResult UpdateAttempterAndroid::GetOTAUpdateResult() const {
   // We only set |kPrefsSystemUpdatedMarker| if slot is actually switched, so
   // existence of this pref is sufficient indicator. Given that we have to
   // delete this pref after checking it. This is done in
-  // |DeltaPerformer::ResetUpdateProgress|
+  // |DeltaPerformer::ResetUpdateProgress| and
+  // |UpdateAttempterAndroid::UpdateStateAfterReboot|
   auto slot_switch_attempted = prefs_->Exists(kPrefsUpdateCompletedOnBootId);
   auto system_rebooted = DidSystemReboot(prefs_);
   auto ota_successful = OTARebootSucceeded();
@@ -991,6 +1002,11 @@ void UpdateAttempterAndroid::UpdateStateAfterReboot(const OTAResult result) {
   string current_boot_id;
   TEST_AND_RETURN(utils::GetBootId(&current_boot_id));
   prefs_->SetString(kPrefsBootId, current_boot_id);
+  std::string slot_switch_indicator;
+  prefs_->GetString(kPrefsUpdateCompletedOnBootId, &slot_switch_indicator);
+  if (slot_switch_indicator != current_boot_id) {
+    ClearUpdateCompletedMarker();
+  }
 
   // If there's no record of previous version (e.g. due to a data wipe), we
   // save the info of current boot and skip the metrics report.
@@ -1301,6 +1317,15 @@ void UpdateAttempterAndroid::RemoveCleanupPreviousUpdateCallback(
                      [&](const auto& e) { return e.get() == callback; });
   cleanup_previous_update_callbacks_.erase(
       end_it, cleanup_previous_update_callbacks_.end());
+}
+
+bool UpdateAttempterAndroid::IsProductionBuild() {
+  if (android::base::GetProperty("ro.build.type", "") != "userdebug" ||
+      android::base::GetProperty("ro.build.tags", "") == "release-keys" ||
+      android::base::GetProperty("ro.boot.verifiedbootstate", "") == "green") {
+    return true;
+  }
+  return false;
 }
 
 }  // namespace chromeos_update_engine
