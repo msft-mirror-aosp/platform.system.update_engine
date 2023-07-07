@@ -1728,6 +1728,14 @@ void UpdateAttempter::InvalidateUpdate() {
         << "Could not delete update completed markers. Continuing anyway.";
     success = false;
   }
+
+  LOG(INFO) << "Clearing powerwash and rollback flags, if any.";
+  if (!SystemState::Get()->hardware()->CancelPowerwash()) {
+    LOG(WARNING) << "Failed to cancel powerwash. Continuing anyway.";
+    success = false;
+  }
+  SystemState::Get()->payload_state()->SetRollbackHappened(false);
+
   LOG(INFO) << "Invalidating firmware update.";
   if (!SystemState::Get()->hardware()->ResetFWTryNextSlot()) {
     LOG(WARNING) << "Could not reset firmware slot. Continuing anyway.";

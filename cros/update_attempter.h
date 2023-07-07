@@ -372,6 +372,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, MoveToPrefs);
   FRIEND_TEST(UpdateAttempterTest, FirstUpdateBeforeReboot);
   FRIEND_TEST(UpdateAttempterTest, InvalidateLastUpdate);
+  FRIEND_TEST(UpdateAttempterTest, InvalidateLastPowerwashUpdate);
   FRIEND_TEST(UpdateAttempterTest, ConsecutiveUpdateBeforeRebootSuccess);
   FRIEND_TEST(UpdateAttempterTest, ConsecutiveUpdateBeforeRebootLimited);
   FRIEND_TEST(UpdateAttempterTest, ConsecutiveUpdateFailureMetric);

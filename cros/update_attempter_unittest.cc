@@ -2633,12 +2633,42 @@ TEST_F(UpdateAttempterTest, InvalidateLastUpdate) {
   attempter_.WriteUpdateCompletedMarker();
   EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
   attempter_.status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
+              SetRollbackHappened(false))
+      .Times(1);
 
   // Invalidate an update.
   MockAction action;
   attempter_.ActionCompleted(
       nullptr, &action, ErrorCode::kInvalidateLastUpdate);
+
   EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+  EXPECT_FALSE(FakeSystemState::Get()->fake_hardware()->IsPowerwashScheduled());
+  EXPECT_TRUE(FakeSystemState::Get()->fake_hardware()->IsFWTryNextSlotReset());
+}
+
+TEST_F(UpdateAttempterTest, InvalidateLastPowerwashUpdate) {
+  // Mock a previous update.
+  bool save_rollback_data = true;
+  FakeSystemState::Get()->fake_hardware()->SchedulePowerwash(
+      save_rollback_data);
+  EXPECT_TRUE(FakeSystemState::Get()->fake_hardware()->IsPowerwashScheduled());
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  attempter_.status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+  EXPECT_CALL(*FakeSystemState::Get()->mock_payload_state(),
+              SetRollbackHappened(false))
+      .Times(1);
+
+  // Invalidate an update.
+  MockAction action;
+  attempter_.ActionCompleted(
+      nullptr, &action, ErrorCode::kInvalidateLastUpdate);
+
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+  EXPECT_FALSE(FakeSystemState::Get()->fake_hardware()->IsPowerwashScheduled());
+  EXPECT_TRUE(FakeSystemState::Get()->fake_hardware()->IsFWTryNextSlotReset());
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsRemoveStaleMetadata) {
