@@ -31,6 +31,14 @@ package {
     default_applicable_licenses: ["system_update_engine_license"],
 }
 
+filegroup {
+    name: "update_device_script",
+    srcs: [
+        "**/*.py",
+    ],
+    path: ".",
+}
+
 python_library_host {
     name: "update_payload",
 
@@ -49,4 +57,23 @@ python_library_host {
     libs: [
         "update_metadata-protos-python",
     ],
+}
+
+python_binary_host {
+    name: "update_device",
+    srcs: [
+        "update_device.py",
+    ],
+    main: "update_device.py",
+    libs: [
+        "update_payload",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+        },
+    },
 }
