@@ -21,7 +21,6 @@
 #include <base/bind.h>
 #include <base/logging.h>
 #include <binderwrapper/binder_wrapper.h>
-#include <brillo/errors/error.h>
 #include <utils/String8.h>
 
 #include "update_engine/aosp/binder_service_android_common.h"
@@ -78,10 +77,7 @@ Status BinderUpdateEngineAndroidService::bind(
   auto binder_wrapper = android::BinderWrapper::Get();
   binder_wrapper->RegisterForDeathNotifications(
       callback_binder,
-      base::Bind(
-          base::IgnoreResult(&BinderUpdateEngineAndroidService::UnbindCallback),
-          base::Unretained(this),
-          base::Unretained(callback_binder.get())));
+      [this, callback = callback_binder.get()]() { UnbindCallback(callback); });
 
   *return_value = true;
   return Status::ok();
@@ -106,7 +102,7 @@ Status BinderUpdateEngineAndroidService::applyPayload(
   const string payload_url{android::String8{url}.string()};
   vector<string> str_headers = ToVecString(header_kv_pairs);
 
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->ApplyPayload(
           payload_url, payload_offset, payload_size, str_headers, &error)) {
     return ErrorPtrToStatus(error);
@@ -121,7 +117,7 @@ Status BinderUpdateEngineAndroidService::applyPayloadFd(
     const vector<android::String16>& header_kv_pairs) {
   vector<string> str_headers = ToVecString(header_kv_pairs);
 
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->ApplyPayload(
           pfd.get(), payload_offset, payload_size, str_headers, &error)) {
     return ErrorPtrToStatus(error);
@@ -130,28 +126,28 @@ Status BinderUpdateEngineAndroidService::applyPayloadFd(
 }
 
 Status BinderUpdateEngineAndroidService::suspend() {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->SuspendUpdate(&error))
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::resume() {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->ResumeUpdate(&error))
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::cancel() {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->CancelUpdate(&error))
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
 
 Status BinderUpdateEngineAndroidService::resetStatus() {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->ResetStatus(&error))
     return ErrorPtrToStatus(error);
   return Status::ok();
@@ -159,7 +155,7 @@ Status BinderUpdateEngineAndroidService::resetStatus() {
 
 Status BinderUpdateEngineAndroidService::setShouldSwitchSlotOnReboot(
     const android::String16& metadata_filename) {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->setShouldSwitchSlotOnReboot(
           android::String8(metadata_filename).string(), &error)) {
     return ErrorPtrToStatus(error);
@@ -168,7 +164,7 @@ Status BinderUpdateEngineAndroidService::setShouldSwitchSlotOnReboot(
 }
 
 Status BinderUpdateEngineAndroidService::resetShouldSwitchSlotOnReboot() {
-  brillo::ErrorPtr error;
+  Error error;
   if (!service_delegate_->resetShouldSwitchSlotOnReboot(&error)) {
     return ErrorPtrToStatus(error);
   }
@@ -181,10 +177,10 @@ Status BinderUpdateEngineAndroidService::verifyPayloadApplicable(
       android::String8{metadata_filename}.string()};
   LOG(INFO) << "Received a request of verifying payload metadata in "
             << payload_metadata << ".";
-  brillo::ErrorPtr error;
+  Error error;
   *return_value =
       service_delegate_->VerifyPayloadApplicable(payload_metadata, &error);
-  if (error != nullptr)
+  if (error.error_code != ErrorCode::kSuccess)
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
@@ -213,11 +209,11 @@ Status BinderUpdateEngineAndroidService::allocateSpaceForPayload(
   vector<string> str_headers = ToVecString(header_kv_pairs);
   LOG(INFO) << "Received a request of allocating space for " << payload_metadata
             << ".";
-  brillo::ErrorPtr error;
+  Error error;
   *return_value =
       static_cast<int64_t>(service_delegate_->AllocateSpaceForPayload(
           payload_metadata, str_headers, &error));
-  if (error != nullptr)
+  if (error.error_code != ErrorCode::kSuccess)
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
@@ -237,7 +233,7 @@ class CleanupSuccessfulUpdateCallback
             update_engine::UpdateStatus::CLEANUP_PREVIOUS_UPDATE),
         progress));
   }
-  void RegisterForDeathNotifications(base::Closure unbind) {
+  void RegisterForDeathNotifications(const std::function<void()>& unbind) {
     const android::sp<android::IBinder>& callback_binder =
         IUpdateEngineCallback::asBinder(callback_);
     auto binder_wrapper = android::BinderWrapper::Get();
@@ -250,10 +246,10 @@ class CleanupSuccessfulUpdateCallback
 
 Status BinderUpdateEngineAndroidService::cleanupSuccessfulUpdate(
     const android::sp<IUpdateEngineCallback>& callback) {
-  brillo::ErrorPtr error;
+  Error error;
   service_delegate_->CleanupSuccessfulUpdate(
       std::make_unique<CleanupSuccessfulUpdateCallback>(callback), &error);
-  if (error != nullptr)
+  if (error.error_code != ErrorCode::kSuccess)
     return ErrorPtrToStatus(error);
   return Status::ok();
 }
