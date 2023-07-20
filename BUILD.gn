@@ -282,12 +282,15 @@ static_library("libupdate_engine") {
   ]
 
   if (use.hw_details) {
-    deps += [ "//diagnostics/mojom/public:cros_healthd_mojo_bindings" ]
     sources += [
       "common/cros_healthd.cc",
       "common/telemetry_info.cc",
     ]
-    pkg_deps += [ "mojo_service_manager" ]
+    pkg_deps += [
+      "cros_healthd-client",
+      "libmojo",
+      "mojo_service_manager",
+    ]
   } else {
     sources += [
       "common/cros_healthd_stub.cc",
@@ -611,7 +614,11 @@ if (use.test) {
 
     if (use.hw_details) {
       sources += [ "common/cros_healthd_test.cc" ]
-      pkg_deps += [ "mojo_service_manager" ]
+      pkg_deps += [
+        "cros_healthd-client",
+        "libmojo",
+        "mojo_service_manager",
+      ]
     }
     if (use.dlc) {
       sources += [ "cros/excluder_chromeos_unittest.cc" ]
