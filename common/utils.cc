@@ -108,6 +108,14 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   return true;
 }
 
+// Generate a simple hash.
+uint64_t GenerateExclusionHash(const std::string& sp) {
+  uint64_t result = 0;
+  for (const auto& c : sp)
+    result = (result * 131) + static_cast<uint64_t>(c);
+  return result;
+}
+
 }  // namespace
 
 namespace utils {
@@ -1001,7 +1009,7 @@ string GetTimeAsString(time_t utime) {
 }
 
 string GetExclusionName(const string& str_to_convert) {
-  return base::NumberToString(base::StringPieceHash()(str_to_convert));
+  return base::NumberToString(GenerateExclusionHash(str_to_convert));
 }
 
 static bool ParseTimestamp(const std::string& str, int64_t* out) {
