@@ -125,6 +125,10 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
     return &var_market_segment_;
   }
 
+  Variable<bool>* var_is_enterprise_enrolled() override {
+    return &var_is_enterprise_enrolled_;
+  };
+
  private:
   FRIEND_TEST(UmRealDevicePolicyProviderTest, RefreshScheduledTest);
   FRIEND_TEST(UmRealDevicePolicyProviderTest, NonExistentDevicePolicyReloaded);
@@ -240,6 +244,7 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   AsyncCopyVariable<std::string> var_quick_fix_build_token_{
       "quick_fix_build_token"};
   AsyncCopyVariable<std::string> var_market_segment_{"market_segment"};
+  AsyncCopyVariable<bool> var_is_enterprise_enrolled_{"is_enterprise_enrolled"};
 };
 
 }  // namespace chromeos_update_manager

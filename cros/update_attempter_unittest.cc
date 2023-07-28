@@ -60,6 +60,7 @@
 #include "update_engine/payload_consumer/payload_constants.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
+#include "update_engine/update_manager/fake_device_policy_provider.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -2799,6 +2800,372 @@ TEST_F(UpdateAttempterTest, InstallMultiDlcTest) {
   attempter_.dlc_ids_ = {"dlc_a", "dlc_b"};
   attempter_.Install();
   EXPECT_EQ(UpdateStatus::IDLE, attempter_.status_);
+}
+
+TEST_F(UpdateAttempterTest,
+       ShouldCancelReturnsTrueIfEnterpriseUpdatesDisabled) {
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  ErrorCode error_code = ErrorCode::kSuccess;
+
+  EXPECT_EQ(attempter_.ShouldCancel(&error_code), true);
+  EXPECT_EQ(error_code, ErrorCode::kDownloadCancelledPerPolicy);
+}
+
+TEST_F(UpdateAttempterTest, ShouldCancelReturnsFalseIfNonEnterprise) {
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(false));
+  ErrorCode error_code = ErrorCode::kSuccess;
+
+  EXPECT_EQ(attempter_.ShouldCancel(&error_code), false);
+  EXPECT_EQ(error_code, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest,
+       ShouldCancelReturnsFalseIfEnterpriseUpdatesEnabled) {
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+  ErrorCode error_code = ErrorCode::kSuccess;
+
+  EXPECT_EQ(attempter_.ShouldCancel(&error_code), false);
+  EXPECT_EQ(error_code, ErrorCode::kSuccess);
+}
+
+TEST_F(UpdateAttempterTest, AfterRestartUpdateInvalidationScheduled) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+
+  attempter_.Init();
+
+  EXPECT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+}
+
+TEST_F(UpdateAttempterTest, AfterRestartNoInvalidationScheduledIfNoUpdate) {
+  ASSERT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+
+  attempter_.Init();
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+}
+
+TEST_F(UpdateAttempterTest,
+       AfterRestartNoInvalidationScheduledIfDeferredUpdate) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  FakeSystemState::Get()->fake_prefs()->SetString(kPrefsDeferredUpdateCompleted,
+                                                  "");
+
+  attempter_.Init();
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+}
+
+TEST_F(UpdateAttempterTest, AfterRestartInvalidatesUpdate) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  // Init the update attempter to schedule the update invalidation.
+  attempter_.Init();
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Configure the enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterRestartSubscribesInvalidatesUpdate) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  // Init the update attempter to schedule the update invalidation.
+  attempter_.Init();
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Enable updates first, so that the update attempter subscribes to
+  // the policy changes.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+  loop_.RunOnce(false);
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+
+  // Disables the enterprise updates and notify the policy request.
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->NotifyValueChanged();
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest,
+       AfterRestartSkipsUpdateInvalidationIfNonEnterprise) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  // Init the update attempter to schedule the update invalidation.
+  attempter_.Init();
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Configure the non enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(false));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterRestartSkipsUpdateInvalidationIfNotIdle) {
+  // Mock a previous update.
+  FakeSystemState::Get()->fake_clock()->SetBootTime(Time::FromTimeT(42));
+  attempter_.WriteUpdateCompletedMarker();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  // Init the update attempter to schedule the update invalidation.
+  attempter_.Init();
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Disable the updates via the enterprise policy, but make
+  // the update engine non IDLE.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  attempter_.status_ = UpdateStatus::CHECKING_FOR_UPDATE;
+
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterUpdateInvalidatesUpdate) {
+  // Disables the updates via the enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+
+  // Complete an update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterUpdateSubscribesInvalidatesUpdate) {
+  // First enable the updates.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+
+  // Complete an update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Also disable the updates after the completion and notify
+  // the policy request.
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->NotifyValueChanged();
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterUpdateSkipsUpdateInvalidationIfNonEnterprise) {
+  // Configure the non enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(false));
+
+  // Complete an update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterUpdateSkipsInvalidationIfDeferredUpdates) {
+  // Disable the updates via the enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+
+  // Complete an update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Fake a deferred update.
+  attempter_.status_ = UpdateStatus::UPDATED_BUT_DEFERRED;
+
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterUpdateSkipsUpdateInvalidationIfNonIdle) {
+  // Disable the updates via the enterprise policy.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+
+  // Complete an update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Make the update engine non IDLE.
+  attempter_.status_ = UpdateStatus::CHECKING_FOR_UPDATE;
+
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterRepeatedUpdateInvalidatesUpdate) {
+  // Enable the updates.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+  // Complete the first update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  loop_.RunOnce(false);
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+
+  // Complete a repeated update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Disable the updates and notify the policy request.
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->NotifyValueChanged();
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
+}
+
+TEST_F(UpdateAttempterTest, AfterRepeatedInvalidatesUpdateOnError) {
+  // Enable the updates.
+  chromeos_update_manager::FakeDevicePolicyProvider* device_policy_provider =
+      FakeSystemState::Get()
+          ->fake_update_manager()
+          ->state()
+          ->device_policy_provider();
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(false));
+  // Complete the first update cycle.
+  pd_params_.should_update_completed_be_called = true;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  loop_.RunOnce(false);
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+
+  // Error out in the next repeated update cycle.
+  pd_params_.code = ErrorCode::kNoUpdate;
+  pd_params_.should_update_completed_be_called = false;
+  pd_params_.expected_exit_status = UpdateStatus::UPDATED_NEED_REBOOT;
+  TestProcessingDone();
+  ASSERT_TRUE(attempter_.GetBootTimeAtUpdate(nullptr));
+  ASSERT_TRUE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  // Disable the updates and notify the policy request.
+  device_policy_provider->var_is_enterprise_enrolled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->reset(new bool(true));
+  device_policy_provider->var_update_disabled()->NotifyValueChanged();
+  loop_.RunOnce(false);
+
+  EXPECT_FALSE(attempter_.enterprise_update_invalidation_check_scheduled_);
+  EXPECT_FALSE(attempter_.GetBootTimeAtUpdate(nullptr));
 }
 
 }  // namespace chromeos_update_engine

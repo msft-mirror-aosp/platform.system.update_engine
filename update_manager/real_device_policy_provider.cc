@@ -257,6 +257,8 @@ void RealDevicePolicyProvider::RefreshDevicePolicy() {
 
   var_device_policy_is_loaded_.SetValue(
       policy_provider_->device_policy_is_loaded());
+  var_is_enterprise_enrolled_.SetValue(
+      policy_provider_->IsEnterpriseEnrolledDevice());
 
   UpdateVariable(&var_release_channel_, &DevicePolicy::GetReleaseChannel);
   UpdateVariable(&var_release_channel_delegated_,

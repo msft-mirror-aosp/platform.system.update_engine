@@ -207,8 +207,9 @@ class UpdateAttempter : public ActionProcessorDelegate,
   // InstallActionDelegate methods:
   void BytesReceived(uint64_t bytes_received, uint64_t total) override;
 
-  // Returns that the update should be canceled when the download channel was
-  // changed.
+  // Returns if an in-progress update should be cancelled.
+  // Returns true if a download channel was changed or if updates are disabled
+  // by the enterprise policy.
   bool ShouldCancel(ErrorCode* cancel_reason) override;
 
   // Resets the update status. If there is an a valid update complete marker,
@@ -381,7 +382,26 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest, InstallZeroDlcTest);
   FRIEND_TEST(UpdateAttempterTest, InstallSingleDlcTest);
   FRIEND_TEST(UpdateAttempterTest, InstallMultiDlcTest);
-
+  FRIEND_TEST(UpdateAttempterTest, AfterRestartUpdateInvalidationScheduled);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterRestartNoInvalidationScheduledIfNoUpdate);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterRestartNoInvalidationScheduledIfDeferredUpdate);
+  FRIEND_TEST(UpdateAttempterTest, AfterRestartInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest, AfterRestartSubscribesInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterRestartSkipsUpdateInvalidationIfNonEnterprise);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterRestartSkipsUpdateInvalidationIfNotIdle);
+  FRIEND_TEST(UpdateAttempterTest, AfterUpdateInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest, AfterUpdateSubscribesInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterUpdateSkipsUpdateInvalidationIfNonEnterprise);
+  FRIEND_TEST(UpdateAttempterTest,
+              AfterUpdateSkipsInvalidationIfDeferredUpdates);
+  FRIEND_TEST(UpdateAttempterTest, AfterUpdateSkipsUpdateInvalidationIfNonIdle);
+  FRIEND_TEST(UpdateAttempterTest, AfterRepeatedUpdateInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest, AfterRepeatedInvalidatesUpdateOnError);
   // Returns the special flags to be added to ErrorCode values based on the
   // parameters used in the current update attempt.
   uint32_t GetErrorCodeFlags();
@@ -554,6 +574,22 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   void OnRootfsIntegrityCheck(int ret_code, const std::string& output) const;
 
+  // Schedules a policy request to check and subscribe to the enterprise signals
+  // that indicate if we should invalidate a pending update.
+  // Currently the only source of the signal is the
+  // `EnterpriseUpdateDisabledPolicyImpl` policy.
+  // Returns false if already scheduled or failed to schedule.
+  bool ScheduleEnterpriseUpdateInvalidationCheck();
+
+  // Used as a policy request callback for
+  // `ScheduleEnterpriseUpdateInvalidationCheck`.
+  // Invalidates pending updates on the enterprise invalidation signal and if
+  // the update attempter is in the UpdateStatus::UPDATED_NEED_REBOOT state.
+  // `status` values are expected to be semantically similar to
+  // `EnterpriseUpdateDisabledPolicyImpl` policy.
+  void OnEnterpriseUpdateInvalidationCheck(
+      chromeos_update_manager::EvalStatus status);
+
   // Last status notification timestamp used for throttling. Use monotonic
   // TimeTicks to ensure that notifications are sent even if the system clock is
   // set back in the middle of an update.
@@ -635,6 +671,11 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Tracks whether we have scheduled update checks.
   bool waiting_for_scheduled_check_ = false;
+
+  // Tracks if the enterprise update invalidation check is already scheduled by
+  // `ScheduleEnterpriseUpdateInvalidationCheck`.
+  // Needed so that we only have at most one scheduled check.
+  bool enterprise_update_invalidation_check_scheduled_ = 0;
 
   // A callback to use when a forced update request is either received (true) or
   // cleared by an update attempt (false). The second argument indicates whether

@@ -420,4 +420,26 @@ TEST_F(UmRealDevicePolicyProviderTest, DeviceSegmentNotSet) {
   UmTestUtils::ExpectVariableNotSet(provider_->var_market_segment());
 }
 
+TEST_F(UmRealDevicePolicyProviderTest, IsEnterpriseEnrolledTrue) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(true,
+                                      provider_->var_is_enterprise_enrolled());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, IsEnterpriseEnrolledFalse) {
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(false));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  UmTestUtils::ExpectVariableHasValue(false,
+                                      provider_->var_is_enterprise_enrolled());
+}
+
 }  // namespace chromeos_update_manager

@@ -110,6 +110,10 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
     return &var_market_segment_;
   }
 
+  FakeVariable<bool>* var_is_enterprise_enrolled() override {
+    return &var_is_enterprise_enrolled_;
+  };
+
  private:
   FakeVariable<bool> var_device_policy_is_loaded_{"device_policy_is_loaded",
                                                   kVariableModePoll};
@@ -119,7 +123,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
                                                     kVariableModePoll};
   FakeVariable<std::string> var_release_lts_tag_{"release_lts_tag",
                                                  kVariableModePoll};
-  FakeVariable<bool> var_update_disabled_{"update_disabled", kVariableModePoll};
+  FakeVariable<bool> var_update_disabled_{"update_disabled",
+                                          kVariableModeAsync};
   FakeVariable<std::string> var_target_version_prefix_{"target_version_prefix",
                                                        kVariableModePoll};
   FakeVariable<RollbackToTargetVersion> var_rollback_to_target_version_{
@@ -147,6 +152,8 @@ class FakeDevicePolicyProvider : public DevicePolicyProvider {
                                                        kVariableModePoll};
   FakeVariable<std::string> var_market_segment_{"market_segment",
                                                 kVariableModePoll};
+  FakeVariable<bool> var_is_enterprise_enrolled_{"is_enterprise_enrolled",
+                                                 kVariableModeAsync};
 };
 
 }  // namespace chromeos_update_manager

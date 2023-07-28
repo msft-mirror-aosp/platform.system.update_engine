@@ -68,6 +68,7 @@
 #include "update_engine/payload_consumer/filesystem_verifier_action.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
+#include "update_engine/update_manager/enterprise_update_disabled_policy_impl.h"
 #include "update_engine/update_manager/omaha_request_params_policy.h"
 #include "update_engine/update_manager/update_manager.h"
 #include "update_engine/update_status_utils.h"
@@ -78,6 +79,7 @@ using base::TimeDelta;
 using base::TimeTicks;
 using brillo::MessageLoop;
 using chromeos_update_manager::CalculateStagingCase;
+using chromeos_update_manager::EnterpriseUpdateDisabledPolicyImpl;
 using chromeos_update_manager::EvalStatus;
 using chromeos_update_manager::OmahaRequestParamsPolicy;
 using chromeos_update_manager::StagingCase;
@@ -177,6 +179,12 @@ void UpdateAttempter::Init() {
       status_ = UpdateStatus::UPDATED_BUT_DEFERRED;
     else
       status_ = UpdateStatus::UPDATED_NEED_REBOOT;
+
+    // Check if the pending update should be invalidated due to the enterprise
+    // invalidation after update_engine restart.
+    if (status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
+      ScheduleEnterpriseUpdateInvalidationCheck();
+    }
   } else {
     // Send metric before deleting prefs. Metric tells us how many times the
     // inactive partition was updated before the reboot.
@@ -190,6 +198,39 @@ void UpdateAttempter::Init() {
 
 bool UpdateAttempter::IsUpdating() {
   return pm_ == ProcessMode::UPDATE;
+}
+
+bool UpdateAttempter::ScheduleEnterpriseUpdateInvalidationCheck() {
+  if (enterprise_update_invalidation_check_scheduled_) {
+    LOG(WARNING)
+        << "Enterprise update invalidation check is already scheduled.";
+    return false;
+  }
+  enterprise_update_invalidation_check_scheduled_ = true;
+
+  LOG(INFO) << "Scheduling enterprise update invalidation check.";
+  SystemState::Get()->update_manager()->PolicyRequest(
+      std::make_unique<EnterpriseUpdateDisabledPolicyImpl>(),
+      nullptr,
+      base::BindOnce(&UpdateAttempter::OnEnterpriseUpdateInvalidationCheck,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  return true;
+}
+
+void UpdateAttempter::OnEnterpriseUpdateInvalidationCheck(
+    EvalStatus eval_status) {
+  enterprise_update_invalidation_check_scheduled_ = false;
+
+  if (eval_status == EvalStatus::kSucceeded &&
+      status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
+    LOG(INFO) << "Received enterprise update invalidation signal. "
+              << "Invalidating the pending update.";
+    InvalidateUpdate();
+    ResetUpdateStatus();
+  }
+
+  return;
 }
 
 bool UpdateAttempter::ScheduleUpdates(const ScheduleUpdatesParams& params) {
@@ -1487,6 +1528,14 @@ void UpdateAttempter::ProcessingDone(const ActionProcessor* processor,
   // failure, error, update, or install.
   pm_ = ProcessMode::UPDATE;
   skip_applying_ = false;
+  // Scheduling a check for and subscribing to the enterprise update
+  // invalidation signals at the very end of update cycles.
+  // That allows to invalidate updates in case if the update engine receives
+  // an enterprise invalidation signal after an update cycle completes.
+  // Scheduling the check here also covers the case when the signal gets
+  // received during an in-progress update.
+  // More details can be found in the feature tracker b/275530794.
+  ScheduleEnterpriseUpdateInvalidationCheck();
 }
 
 void UpdateAttempter::ProcessingStopped(const ActionProcessor* processor) {
@@ -1965,6 +2014,17 @@ bool UpdateAttempter::ShouldCancel(ErrorCode* cancel_reason) {
                << " is different from the download channel: "
                << params->download_channel();
     *cancel_reason = ErrorCode::kUpdateCanceledByChannelChange;
+    return true;
+  }
+
+  // Check if updates are disabled by the enterprise policy. Cancel the download
+  // if disabled.
+  if (SystemState::Get()->update_manager()->PolicyRequest(
+          std::make_unique<EnterpriseUpdateDisabledPolicyImpl>(), nullptr) ==
+      EvalStatus::kSucceeded) {
+    LOG(ERROR) << "Cancelling download as updates have been disabled by "
+                  "enterprise policy";
+    *cancel_reason = ErrorCode::kDownloadCancelledPerPolicy;
     return true;
   }
 

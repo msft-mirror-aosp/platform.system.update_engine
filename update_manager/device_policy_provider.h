@@ -102,6 +102,10 @@ class DevicePolicyProvider : public Provider {
   // Variable that contains the market segment defined in the device policy.
   virtual Variable<std::string>* var_market_segment() = 0;
 
+  // Returns true if OOBE has been completed and if the device has been enrolled
+  // as an enterprise device.
+  virtual Variable<bool>* var_is_enterprise_enrolled() = 0;
+
  protected:
   DevicePolicyProvider() {}
 };
