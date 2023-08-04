@@ -148,6 +148,12 @@ string GetPayloadId(const std::map<string, string>& headers) {
               : "");
 }
 
+std::string GetCurrentBuildVersion() {
+  // Example: [ro.build.fingerprint]:
+  // [generic/aosp_cf_x86_64_phone/vsoc_x86_64:VanillaIceCream/AOSP.MAIN/user08011303:userdebug/test-keys]
+  return android::base::GetProperty("ro.build.fingerprint", "");
+}
+
 }  // namespace
 
 UpdateAttempterAndroid::UpdateAttempterAndroid(
@@ -1026,8 +1032,7 @@ void UpdateAttempterAndroid::CollectAndReportUpdateMetricsOnUpdateFinished(
 
 bool UpdateAttempterAndroid::OTARebootSucceeded() const {
   const auto current_slot = boot_control_->GetCurrentSlot();
-  const string current_version =
-      android::base::GetProperty("ro.build.version.incremental", "");
+  const string current_version = GetCurrentBuildVersion();
   int64_t previous_slot = -1;
   TEST_AND_RETURN_FALSE(prefs_->GetInt64(kPrefsPreviousSlot, &previous_slot));
   string previous_version;
@@ -1080,9 +1085,7 @@ OTAResult UpdateAttempterAndroid::GetOTAUpdateResult() const {
 }
 
 void UpdateAttempterAndroid::UpdateStateAfterReboot(const OTAResult result) {
-  // Example: [ro.build.version.incremental]: [4292972]
-  string current_version =
-      android::base::GetProperty("ro.build.version.incremental", "");
+  const string current_version = GetCurrentBuildVersion();
   TEST_AND_RETURN(!current_version.empty());
 
   // |UpdateStateAfterReboot()| is only called after system reboot, so record
@@ -1218,12 +1221,23 @@ uint64_t UpdateAttempterAndroid::AllocateSpaceForPayload(
 
   string payload_id = GetPayloadId(headers);
   uint64_t required_size = 0;
+  ErrorCode error_code{};
+
   if (!DeltaPerformer::PreparePartitionsForUpdate(prefs_,
                                                   boot_control_,
                                                   GetTargetSlot(),
                                                   manifest,
                                                   payload_id,
-                                                  &required_size)) {
+                                                  &required_size,
+                                                  &error_code)) {
+    if (error_code == ErrorCode::kOverlayfsenabledError) {
+      LogAndSetError(error,
+                     __LINE__,
+                     __FILE__,
+                     "OverlayFS Shouldn't be enabled for OTA.",
+                     error_code);
+      return 0;
+    }
     if (required_size == 0) {
       LogAndSetGenericError(
           error, __LINE__, __FILE__, "Failed to allocate space for payload.");
@@ -1300,6 +1314,7 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
       std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
   SetStatusAndNotify(UpdateStatus::VERIFYING);
   postinstall_runner_action->set_delegate(this);
+  ErrorCode error_code{};
 
   // If last error code is kUpdatedButNotActive, we know that we reached this
   // state by calling applyPayload() with switch_slot=false. That applyPayload()
@@ -1314,11 +1329,11 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
                                           GetTargetSlot(),
                                           manifest,
                                           false /* should update */,
-                                          nullptr)) {
+                                          nullptr,
+                                          &error_code)) {
       return LogAndSetGenericError(
           error, __LINE__, __FILE__, "Failed to PreparePartitionsForUpdate");
     }
-    ErrorCode error_code{};
     if (!install_plan_.ParsePartitions(manifest.partitions(),
                                        boot_control_,
                                        manifest.block_size(),
