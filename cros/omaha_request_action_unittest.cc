@@ -1193,6 +1193,21 @@ TEST_F(OmahaRequestActionTest, AllowMiniOsWithoutOOBE) {
   EXPECT_TRUE(response_.update_exists);
 }
 
+TEST_F(OmahaRequestActionTest, WallClockBasedWaitForDLCsDoNotScatter) {
+  request_params_.set_wall_clock_based_wait_enabled(true);
+  request_params_.set_update_check_count_wait_enabled(false);
+  request_params_.set_waiting_period(base::Days(2));
+  request_params_.set_is_install(true);
+  FakeSystemState::Get()->fake_clock()->SetWallclockTime(Time::Now());
+  tuc_params_.http_response = fake_update_response_.GetUpdateResponse();
+  tuc_params_.expected_code = ErrorCode::kSuccess,
+  tuc_params_.expected_check_reaction = metrics::CheckReaction::kUpdating;
+
+  ASSERT_TRUE(TestUpdateCheck());
+
+  EXPECT_TRUE(response_.update_exists);
+}
+
 TEST_F(OmahaRequestActionTest, WallClockBasedWaitAloneCausesScattering) {
   request_params_.set_wall_clock_based_wait_enabled(true);
   request_params_.set_update_check_count_wait_enabled(false);

@@ -913,6 +913,12 @@ void OmahaRequestAction::LookupPayloadViaP2P() {
 
 bool OmahaRequestAction::ShouldDeferDownload() {
   const auto* params = SystemState::Get()->request_params();
+
+  if (params->is_install()) {
+    LOG(INFO) << "Never defer DLC installations.";
+    return false;
+  }
+
   if (params->interactive()) {
     LOG(INFO) << "Not deferring download because update is interactive.";
     return false;
