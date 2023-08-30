@@ -106,6 +106,9 @@ struct OmahaResponse {
   // True if the returned image is a rollback for the device.
   bool is_rollback = false;
 
+  // If not empty, contains the reason why Omaha did not send an update.
+  std::string no_update_reason;
+
   struct RollbackKeyVersion {
     // Kernel key version. 0xffff if the value is unknown.
     uint16_t kernel_key = std::numeric_limits<uint16_t>::max();

@@ -584,6 +584,8 @@ bool OmahaRequestAction::ParseStatus(ScopedActionCompleter* completer) {
       }
       // Don't update if any app has status="noupdate".
       LOG(INFO) << "No update for App " << app.id;
+      LOG(INFO) << "Reason for no update: " << app.updatecheck.no_update_reason;
+      response_.no_update_reason = app.updatecheck.no_update_reason;
       response_.update_exists = false;
       break;
     } else if (status == "ok") {

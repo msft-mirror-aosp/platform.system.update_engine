@@ -36,7 +36,8 @@ class MetricsReporterStub : public MetricsReporterInterface {
   void ReportRollbackMetrics(metrics::RollbackResult result) override {}
 
   void ReportEnterpriseRollbackMetrics(
-      bool success, const std::string& rollback_version) override {}
+      const std::string& metrics,
+      const std::string& rollback_version) override {}
 
   void ReportDailyMetrics(base::TimeDelta os_age) override {}
 

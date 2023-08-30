@@ -406,12 +406,21 @@ TEST_F(MetricsReporterOmahaTest, ReportEnterpriseRollbackMetrics) {
   EXPECT_CALL(*mock_metrics_lib_,
               SendSparseToUMA(metrics::kMetricEnterpriseRollbackSuccess, 10575))
       .Times(1);
+  reporter_.ReportEnterpriseRollbackMetrics(
+      metrics::kMetricEnterpriseRollbackSuccess, "10575.39.2");
+
   EXPECT_CALL(*mock_metrics_lib_,
               SendSparseToUMA(metrics::kMetricEnterpriseRollbackFailure, 10323))
       .Times(1);
+  reporter_.ReportEnterpriseRollbackMetrics(
+      metrics::kMetricEnterpriseRollbackFailure, "10323.67.7");
 
-  reporter_.ReportEnterpriseRollbackMetrics(/*success=*/true, "10575.39.2");
-  reporter_.ReportEnterpriseRollbackMetrics(/*success=*/false, "10323.67.7");
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendSparseToUMA(metrics::kMetricEnterpriseRollbackBlockedByFSI, 10324))
+      .Times(1);
+  reporter_.ReportEnterpriseRollbackMetrics(
+      metrics::kMetricEnterpriseRollbackBlockedByFSI, "10324.63.0");
 }
 
 TEST_F(MetricsReporterOmahaTest, ReportCertificateCheckMetrics) {

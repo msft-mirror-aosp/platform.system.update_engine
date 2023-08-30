@@ -17,9 +17,9 @@
 #ifndef UPDATE_ENGINE_CROS_OMAHA_PARSER_DATA_H_
 #define UPDATE_ENGINE_CROS_OMAHA_PARSER_DATA_H_
 
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
 namespace chromeos_update_engine {
 
@@ -47,6 +47,7 @@ extern const char kAttrKernelVersion[];
 extern const char kAttrStatus[];
 extern const char kAttrDisableMarketSegment[];
 extern const char kAttrInvalidateLastUpdate[];
+extern const char kAttrNoUpdateReason[];
 
 // |package| attributes.
 extern const char kAttrFp[];
@@ -110,6 +111,7 @@ struct OmahaParserData {
       std::string past_kernel_version;
       std::string disable_market_segment;
       std::string invalidate_last_update;
+      std::string no_update_reason;
     } updatecheck;
 
     struct PostInstallAction {

@@ -25,10 +25,12 @@
 #include <gtest/gtest.h>
 
 #include "update_engine/common/constants.h"
+#include "update_engine/common/mock_metrics_reporter.h"
 #include "update_engine/common/platform_constants.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/fake_system_state.h"
+#include "update_engine/cros/metrics_reporter_omaha.h"
 #include "update_engine/cros/mock_payload_state.h"
 #include "update_engine/payload_consumer/payload_constants.h"
 
@@ -1029,6 +1031,44 @@ TEST_F(OmahaResponseHandlerActionTest, DISABLED_TestDeferredByPolicy) {
   EXPECT_EQ(in.packages[0].fp, install_plan.payloads[0].fp);
   EXPECT_EQ(1U, install_plan.target_slot);
   EXPECT_EQ(in.version, install_plan.version);
+}
+
+TEST_F(OmahaResponseHandlerActionTest, FSIBlockedEnterpriseRollbackIsReported) {
+  OmahaResponse omaha_response;
+  omaha_response.is_rollback = true;
+  omaha_response.no_update_reason = "FSI";
+  omaha_response.update_exists = false;
+  OmahaRequestParams params;
+  params.set_target_version_prefix("12345.6.7");
+  FakeSystemState::Get()->set_request_params(&params);
+
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(
+                  metrics::kMetricEnterpriseRollbackBlockedByFSI, "12345.6.7"))
+      .Times(1);
+  InstallPlan install_plan;
+  // No update. The action will abort.
+  ASSERT_FALSE(DoTest(omaha_response, &install_plan));
+  testing::Mock::VerifyAndClearExpectations(
+      FakeSystemState::Get()->mock_metrics_reporter());
+}
+
+TEST_F(OmahaResponseHandlerActionTest,
+       FSIBlockedEnterpriseRollbackIsOnlyReportedForRollback) {
+  OmahaResponse omaha_response;
+  omaha_response.is_rollback = false;
+  omaha_response.no_update_reason = "FSI";
+  omaha_response.update_exists = false;
+  OmahaRequestParams params;
+  params.set_target_version_prefix("12345");
+  FakeSystemState::Get()->set_request_params(&params);
+
+  EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
+              ReportEnterpriseRollbackMetrics(_, _))
+      .Times(0);
+  InstallPlan install_plan;
+  // No update. The action will abort.
+  ASSERT_FALSE(DoTest(omaha_response, &install_plan));
 }
 
 }  // namespace chromeos_update_engine

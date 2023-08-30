@@ -85,6 +85,7 @@ extern const char kMetricRollbackResult[];
 // UpdateEngine.EnterpriseRollback.* metrics.
 extern const char kMetricEnterpriseRollbackFailure[];
 extern const char kMetricEnterpriseRollbackSuccess[];
+extern const char kMetricEnterpriseRollbackBlockedByFSI[];
 
 // UpdateEngine.CertificateCheck.* metrics.
 extern const char kMetricCertificateCheckUpdateCheck[];
@@ -118,7 +119,7 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportRollbackMetrics(metrics::RollbackResult result) override;
 
   void ReportEnterpriseRollbackMetrics(
-      bool success, const std::string& rollback_version) override;
+      const std::string& metric, const std::string& rollback_version) override;
 
   void ReportDailyMetrics(base::TimeDelta os_age) override;
 

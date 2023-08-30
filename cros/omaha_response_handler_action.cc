@@ -27,10 +27,12 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/hardware_interface.h"
+#include "update_engine/common/metrics_reporter_interface.h"
 #include "update_engine/common/prefs_interface.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/connection_manager_interface.h"
+#include "update_engine/cros/metrics_reporter_omaha.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/payload_state_interface.h"
 #include "update_engine/cros/update_attempter.h"
@@ -48,6 +50,12 @@ using std::string;
 
 namespace chromeos_update_engine {
 
+namespace {
+// If an enterprise rollback would go to an unsafe version because of FSI, the
+// response includes "FSI" as reason.
+const char kNoUpdateReasonFSI[] = "FSI";
+}  // namespace
+
 const char kDeadlineNow[] = "now";
 
 void OmahaResponseHandlerAction::PerformAction() {
@@ -55,6 +63,17 @@ void OmahaResponseHandlerAction::PerformAction() {
   ScopedActionCompleter completer(processor_, this);
   const OmahaResponse& response = GetInputObject();
   if (!response.update_exists) {
+    // Record enterprise rollback requests that were rejected because of FSI.
+    if (response.no_update_reason == kNoUpdateReasonFSI &&
+        response.is_rollback) {
+      LOG(INFO) << "Enterprise Rollback was blocked by FSI.";
+      OmahaRequestParams* const request_params =
+          SystemState::Get()->request_params();
+      SystemState::Get()->metrics_reporter()->ReportEnterpriseRollbackMetrics(
+          metrics::kMetricEnterpriseRollbackBlockedByFSI,
+          request_params->target_version_prefix());
+    }
+
     if (response.invalidate_last_update) {
       LOG(INFO) << "Invalidating previous update.";
       completer.set_code(ErrorCode::kInvalidateLastUpdate);

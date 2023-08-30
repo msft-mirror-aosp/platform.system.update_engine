@@ -115,6 +115,8 @@ const char kMetricEnterpriseRollbackFailure[] =
     "UpdateEngine.EnterpriseRollback.Failure";
 const char kMetricEnterpriseRollbackSuccess[] =
     "UpdateEngine.EnterpriseRollback.Success";
+extern const char kMetricEnterpriseRollbackBlockedByFSI[] =
+    "UpdateEngine.EnterpriseRollback.BlockedByFSI";
 
 // UpdateEngine.CertificateCheck.* metrics.
 const char kMetricCertificateCheckUpdateCheck[] =
@@ -459,11 +461,8 @@ void MetricsReporterOmaha::ReportRollbackMetrics(
 }
 
 void MetricsReporterOmaha::ReportEnterpriseRollbackMetrics(
-    bool success, const string& rollback_version) {
+    const std::string& metric, const string& rollback_version) {
   int value = utils::VersionPrefix(rollback_version);
-  string metric = metrics::kMetricEnterpriseRollbackSuccess;
-  if (!success)
-    metric = metrics::kMetricEnterpriseRollbackFailure;
   metrics_lib_->SendSparseToUMA(metric, value);
 }
 

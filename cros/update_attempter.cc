@@ -57,6 +57,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/download_action_chromeos.h"
 #include "update_engine/cros/install_action.h"
+#include "update_engine/cros/metrics_reporter_omaha.h"
 #include "update_engine/cros/omaha_request_action.h"
 #include "update_engine/cros/omaha_request_params.h"
 #include "update_engine/cros/omaha_response_handler_action.h"
@@ -1502,7 +1503,7 @@ void UpdateAttempter::ProcessingDoneUpdate(const ActionProcessor* processor,
     if (install_plan_->is_rollback) {
       SystemState::Get()->payload_state()->SetRollbackHappened(true);
       SystemState::Get()->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-          /*success=*/true, install_plan_->version);
+          metrics::kMetricEnterpriseRollbackSuccess, install_plan_->version);
     }
 
     // Expect to reboot into the new version to send the proper metric during
@@ -2077,7 +2078,7 @@ bool UpdateAttempter::ScheduleErrorEventAction() {
   // Send metrics if it was a rollback.
   if (install_plan_ && install_plan_->is_rollback) {
     SystemState::Get()->metrics_reporter()->ReportEnterpriseRollbackMetrics(
-        /*success=*/false, install_plan_->version);
+        metrics::kMetricEnterpriseRollbackFailure, install_plan_->version);
   }
 
   if (install_plan_ && (install_plan_->defer_update_action ==

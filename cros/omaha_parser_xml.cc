@@ -107,6 +107,7 @@ void OmahaParserXml::ParserHandlerStart(void* user_data,
             "%s_%i", kAttrKernelVersion, parser->rollback_allowed_milestones_)],
         .disable_market_segment = attrs[kAttrDisableMarketSegment],
         .invalidate_last_update = attrs[kAttrInvalidateLastUpdate],
+        .no_update_reason = attrs[kAttrNoUpdateReason],
     };
   } else if (parser->current_path_ == "/response/app/updatecheck/urls/url") {
     data->apps.back().urls.push_back({.codebase = attrs[kAttrCodeBase]});

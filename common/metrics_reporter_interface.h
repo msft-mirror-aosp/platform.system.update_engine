@@ -46,8 +46,9 @@ class MetricsReporterInterface {
   //
   //  |kMetricEnterpriseRollbackSuccess|
   //  |kMetricEnterpriseRollbackFailure|
+  //  |kMetricEnterpriseRollbackBlockedByFSI|
   virtual void ReportEnterpriseRollbackMetrics(
-      bool success, const std::string& rollback_version) = 0;
+      const std::string& metric, const std::string& rollback_version) = 0;
 
   // Helper function to report metrics reported once a day. The
   // following metrics are reported:

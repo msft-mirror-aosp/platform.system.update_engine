@@ -51,6 +51,7 @@
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/download_action_chromeos.h"
 #include "update_engine/cros/fake_system_state.h"
+#include "update_engine/cros/metrics_reporter_omaha.h"
 #include "update_engine/cros/mock_p2p_manager.h"
 #include "update_engine/cros/mock_payload_state.h"
 #include "update_engine/cros/omaha_utils.h"
@@ -1888,7 +1889,8 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackSuccess) {
   attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
-              ReportEnterpriseRollbackMetrics(true, kRollbackVersion))
+              ReportEnterpriseRollbackMetrics(
+                  metrics::kMetricEnterpriseRollbackSuccess, kRollbackVersion))
       .Times(1);
   attempter_.ProcessingDone(nullptr, ErrorCode::kSuccess);
 }
@@ -1910,7 +1912,8 @@ TEST_F(UpdateAttempterTest, RollbackMetricsRollbackFailure) {
   attempter_.install_plan_->version = kRollbackVersion;
 
   EXPECT_CALL(*FakeSystemState::Get()->mock_metrics_reporter(),
-              ReportEnterpriseRollbackMetrics(false, kRollbackVersion))
+              ReportEnterpriseRollbackMetrics(
+                  metrics::kMetricEnterpriseRollbackFailure, kRollbackVersion))
       .Times(1);
   MockAction action;
   attempter_.CreatePendingErrorEvent(&action, ErrorCode::kRollbackNotPossible);
