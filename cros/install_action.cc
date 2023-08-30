@@ -41,6 +41,9 @@ namespace {
 constexpr char kBandaidUrl[] = "https://edgedl.me.gvt1.com/edgedl/dlc";
 constexpr char kLorryUrl[] = "https://dl.google.com/dlc";
 
+constexpr char kBandaidArtifactsMetaUrl[] = "https://edgedl.me.gvt1.com/edgedl";
+constexpr char kLorryArtifactsMetaUrl[] = "https://dl.google.com";
+
 constexpr char kDefaultArtifact[] = "dlc.img";
 constexpr char kDefaultPackage[] = "package";
 constexpr char kDefaultSlotting[] = "dlc-scaled";
@@ -50,9 +53,7 @@ InstallAction::InstallAction(std::unique_ptr<HttpFetcher> http_fetcher,
                              const std::string& id,
                              const std::string& slotting,
                              const std::string& manifest_dir)
-    : http_fetcher_(std::move(http_fetcher)),
-      id_(id),
-      backup_urls_({kLorryUrl}) {
+    : http_fetcher_(std::move(http_fetcher)), id_(id) {
   slotting_ = slotting.empty() ? kDefaultSlotting : slotting;
   manifest_dir_ =
       manifest_dir.empty() ? imageloader::kDlcManifestRootpath : manifest_dir;
@@ -95,7 +96,32 @@ void InstallAction::PerformAction() {
     return;
   }
   LOG(INFO) << "Installing to " << partition;
-  StartInstallation(kBandaidUrl);
+
+  std::string url_to_fetch;
+  const auto& artifacts_meta = manifest_->artifacts_meta();
+  if (artifacts_meta.valid) {
+    auto UrlToFetch = [artifacts_meta](const std::string& url) -> std::string {
+      return base::FilePath(url)
+          .Append(artifacts_meta.uri)
+          .Append(kDefaultArtifact)
+          .value();
+    };
+    url_to_fetch = UrlToFetch(kBandaidArtifactsMetaUrl);
+    backup_urls_ = {UrlToFetch(kLorryArtifactsMetaUrl)};
+  } else {
+    auto UrlToFetch = [this](const std::string& url) -> std::string {
+      return base::FilePath(url)
+          .Append(image_props_.builder_path)
+          .Append(slotting_)
+          .Append(id_)
+          .Append(kDefaultPackage)
+          .Append(kDefaultArtifact)
+          .value();
+    };
+    url_to_fetch = UrlToFetch(kBandaidUrl);
+    backup_urls_ = {UrlToFetch(kLorryUrl)};
+  }
+  StartInstallation(url_to_fetch);
 }
 
 void InstallAction::TerminateProcessing() {
@@ -184,17 +210,10 @@ void InstallAction::TransferTerminated(HttpFetcher* fetcher) {
   TerminateInstallation();
 }
 
-void InstallAction::StartInstallation(const std::string& url) {
+void InstallAction::StartInstallation(const std::string& url_to_fetch) {
+  LOG(INFO) << "Starting installation using URL=" << url_to_fetch;
   offset_ = 0;
   hash_.reset(crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  auto url_to_fetch = base::FilePath(url)
-                          .Append(image_props_.builder_path)
-                          .Append(slotting_)
-                          .Append(id_)
-                          .Append(kDefaultPackage)
-                          .Append(kDefaultArtifact)
-                          .value();
-  LOG(INFO) << "Starting installation using URL=" << url_to_fetch;
   http_fetcher_->SetOffset(0);
   http_fetcher_->UnsetLength();
   http_fetcher_->BeginTransfer(url_to_fetch);

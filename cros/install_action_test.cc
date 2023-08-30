@@ -35,6 +35,7 @@ namespace {
 constexpr char kDefaultOffset[] = "1024";
 constexpr char kDefaultSha[] =
     "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef";
+constexpr char kArtifactsMetaSomeUri[] = "some/uri/path";
 
 constexpr char kManifestTemplate[] =
     R"({
@@ -60,6 +61,35 @@ constexpr char kManifestTemplate[] =
     R"("44a4e688209bda4e06fd41aadc85a51de7d74a641275cb63b7caead96a9b03b7",
   "used-by": "system",
   "version": "1.0.0-r1"
+})";
+constexpr char kManifestWithArtifactsMetaTemplate[] =
+    R"({
+  "critical-update": false,
+  "days-to-purge": 5,
+  "description": "A FOOBAR DLC",
+  "factory-install": false,
+  "fs-type": "squashfs",
+  "id": "sample-dlc",
+  "image-sha256-hash": )"
+    R"("5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+  "image-type": "dlc",
+  "is-removable": true,
+  "loadpin-verity-digest": false,
+  "manifest-version": 1,
+  "mount-file-required": false,
+  "name": "Sample DLC",
+  "package": "package",
+  "pre-allocated-size": "4194304",
+  "preload-allowed": true,
+  "reserved": false,
+  "size": "1024",
+  "table-sha256-hash": )"
+    R"("44a4e688209bda4e06fd41aadc85a51de7d74a641275cb63b7caead96a9b03b7",
+  "used-by": "system",
+  "version": "1.0.0-r1",
+  "artifacts-meta": {
+    "uri": "%s"
+  }
 })";
 constexpr char kProperties[] = R"(
 CHROMEOS_RELEASE_APPID={DEB6CEFD-4EEE-462F-AC21-52DF1E17B52F}
@@ -155,7 +185,19 @@ class InstallActionTest : public ::testing::Test {
   MockHttpFetcher* mock_http_fetcher_{nullptr};
 };
 
-TEST_F(InstallActionTest, ManifestReadFailure) {
+class InstallActionTestSuite : public InstallActionTest,
+                               public testing::WithParamInterface<std::string> {
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    InstanceForManifests,
+    InstallActionTestSuite,
+    testing::Values(
+        base::StringPrintf(kManifestTemplate, kDefaultSha, kDefaultOffset),
+        base::StringPrintf(kManifestWithArtifactsMetaTemplate,
+                           kArtifactsMetaSomeUri)));
+
+TEST_P(InstallActionTestSuite, ManifestReadFailure) {
   processor_.set_delegate(&delegate_);
   processor_.EnqueueAction(std::move(install_action_));
 
@@ -175,12 +217,11 @@ TEST_F(InstallActionTest, ManifestReadFailure) {
   EXPECT_FALSE(loop_.PendingTasks());
 }
 
-TEST_F(InstallActionTest, PerformSuccessfulTest) {
+TEST_P(InstallActionTestSuite, PerformSuccessfulTest) {
   processor_.set_delegate(&delegate_);
   processor_.EnqueueAction(std::move(install_action_));
 
-  auto manifest =
-      base::StringPrintf(kManifestTemplate, kDefaultSha, kDefaultOffset);
+  auto manifest = GetParam();
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath()
           .Append("dlc/foobar-dlc/package/imageloader.json")
@@ -270,7 +311,7 @@ TEST_F(InstallActionTest, PerformInvalidShaTest) {
   EXPECT_FALSE(loop_.PendingTasks());
 }
 
-TEST_F(InstallActionTest, TransferFailureFetchesFromBackup) {
+TEST_P(InstallActionTestSuite, TransferFailureFetchesFromBackup) {
   ASSERT_EQ(install_action_.get()->backup_url_index_, 0);
 
   processor_.set_delegate(&delegate_);
@@ -278,8 +319,7 @@ TEST_F(InstallActionTest, TransferFailureFetchesFromBackup) {
 
   mock_http_fetcher_->FailTransfer(404);
 
-  auto manifest =
-      base::StringPrintf(kManifestTemplate, kDefaultSha, kDefaultOffset);
+  auto manifest = GetParam();
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath()
           .Append("dlc/foobar-dlc/package/imageloader.json")

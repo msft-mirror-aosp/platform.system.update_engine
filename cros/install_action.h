@@ -96,9 +96,9 @@ class InstallAction : public Action<InstallAction>, public HttpFetcherDelegate {
   void set_delegate(InstallActionDelegate* delegate) { delegate_ = delegate; }
 
  private:
-  FRIEND_TEST(InstallActionTest, TransferFailureFetchesFromBackup);
+  FRIEND_TEST(InstallActionTestSuite, TransferFailureFetchesFromBackup);
 
-  void StartInstallation(const std::string& url);
+  void StartInstallation(const std::string& url_to_fetch);
 
   void TerminateInstallation();
 
