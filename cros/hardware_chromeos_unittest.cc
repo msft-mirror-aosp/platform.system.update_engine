@@ -296,7 +296,7 @@ TEST_F(HardwareChromeOSTest, IsRootfsVerificationEnabled) {
         R"(salt=00d2f004a524773dd1c69aada1cc91b9a5de7701ffbfd4fec89ff34469a47)"
         R"(cf0" noinitrd cros_debug vt.global_cursor_default=0 )"
         R"(kern_guid=dc3f3c92-18db-744b-a2c2-7b0eb696b879 add_efi_memmap )"
-        R"(boot=local noresume noswap i915.modeset=1 ramoops.ecc=1 )"
+        R"(noresume noswap i915.modeset=1 ramoops.ecc=1 )"
         R"(tpm_tis.force=0 intel_pmc_core.warn_on_s0ix_failures=1 )"
         R"(i915.enable_guc=3 i915.enable_dc=4 xdomain=0 swiotlb=65536 )"
         R"(intel_iommu=on i915.enable_psr=1 usb-storage.quirks=13fe:6500:u)";
@@ -320,7 +320,7 @@ TEST_F(HardwareChromeOSTest, IsRootfsVerificationEnabled) {
         R"(salt=00d2f004a524773dd1c69aada1cc91b9a5de7701ffbfd4fec89ff34469a47)"
         R"(cf0" noinitrd cros_debug vt.global_cursor_default=0 )"
         R"(kern_guid=dc3f3c92-18db-744b-a2c2-7b0eb696b879 add_efi_memmap )"
-        R"(boot=local noresume noswap i915.modeset=1 ramoops.ecc=1 )"
+        R"(noresume noswap i915.modeset=1 ramoops.ecc=1 )"
         R"(tpm_tis.force=0 intel_pmc_core.warn_on_s0ix_failures=1 )"
         R"(i915.enable_guc=3 i915.enable_dc=4 xdomain=0 swiotlb=65536 )"
         R"(intel_iommu=on i915.enable_psr=1 usb-storage.quirks=13fe:6500:u)";
