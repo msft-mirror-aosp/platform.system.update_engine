@@ -25,18 +25,13 @@ import("//common-mk/proto_library.gni")
 import("//update_engine/tar_bunzip2.gni")
 
 group("all") {
-  deps = [
-    ":delta_generator",
-    ":libpayload_consumer",
-    ":libpayload_generator",
-    ":libupdate_engine",
-    ":libupdate_engine_client",
-    ":update_engine",
-    ":update_engine-dbus-adaptor",
-    ":update_engine-dbus-kiosk-app-client",
-    ":update_engine_client",
-    ":update_metadata-protos",
-  ]
+  deps = [":delta_generator"]
+  if (!use.cros_host) {
+    deps += [
+      ":update_engine",
+      ":update_engine_client",
+    ]
+  }
 
   if (use.test) {
     deps += [
@@ -332,6 +327,7 @@ executable("update_engine") {
   sources = [ "main.cc" ]
   configs += [ ":target_defaults" ]
   deps = [ ":libupdate_engine" ]
+  install_path = "sbin"
 }
 
 # update_engine client library.
@@ -357,6 +353,7 @@ executable("update_engine_client") {
   ]
   configs += [ ":target_defaults" ]
   deps = [ ":libupdate_engine_client" ]
+  install_path = "bin"
 }
 
 # server-side code. This is used for delta_generator and unittests but not
@@ -414,6 +411,7 @@ executable("delta_generator") {
     ":libpayload_consumer",
     ":libpayload_generator",
   ]
+  install_path = "bin"
 }
 
 if (use.test || use.fuzzer) {

@@ -163,7 +163,8 @@ TYPED_TEST(ZipTest, EmptyInputsTest) {
 }
 
 TYPED_TEST(ZipTest, CompressELFTest) {
-  string path = test_utils::GetBuildArtifactsPath("delta_generator");
+  string path =
+      test_utils::GetBuildArtifactsPath("libupdate_engine_test_libs.a");
   brillo::Blob in;
   utils::ReadFile(path, &in);
   brillo::Blob out;
