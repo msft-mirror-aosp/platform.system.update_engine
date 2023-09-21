@@ -20,11 +20,15 @@
 #include <vector>
 
 #include <base/memory/ptr_util.h>
+#include <base/version.h>
+#include <base/strings/stringprintf.h>
+#include <base/test/scoped_chromeos_version_info.h>
 #include <brillo/message_loops/fake_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <oobe_config/metrics/enterprise_rollback_metrics_handler_for_testing.h>
 #include <policy/device_policy.h>
 #include <policy/mock_device_policy.h>
 #include <policy/mock_libpolicy.h>
@@ -52,14 +56,30 @@ using testing::SetArgPointee;
 
 namespace chromeos_update_manager {
 
+namespace {
+const char kDeviceVersionLsbRelease[] = "15183.1.2";
+const char kTargetVersionPolicy[] = "12345.";
+const char kInvalidTargetVersionPolicy[] = ".";
+
+const base::Version kTargetVersion("12345.0.0");
+const base::Version kDeviceVersion("15183.1.2");
+const base::Version kDeviceVersionOld("15678.5.6");
+const base::Version kTargetVersionOld("18950.7.9");
+}  // namespace
+
 class UmRealDevicePolicyProviderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     loop_.SetAsCurrent();
     auto session_manager_proxy_mock =
         new org::chromium::SessionManagerInterfaceProxyMock();
+    auto rollback_metrics = std::make_unique<
+        oobe_config::EnterpriseRollbackMetricsHandlerForTesting>();
+    rollback_metrics_ = rollback_metrics.get();
     provider_.reset(new RealDevicePolicyProvider(
-        base::WrapUnique(session_manager_proxy_mock), &mock_policy_provider_));
+        base::WrapUnique(session_manager_proxy_mock),
+        &mock_policy_provider_,
+        std::move(rollback_metrics)));
     // By default, we have a device policy loaded. Tests can call
     // SetUpNonExistentDevicePolicy() to override this.
     SetUpExistentDevicePolicy();
@@ -69,6 +89,8 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
     MOCK_SIGNAL_HANDLER_EXPECT_SIGNAL_HANDLER(property_change_complete_,
                                               *session_manager_proxy_mock,
                                               PropertyChangeComplete);
+    // Enable metrics reporting for rollback tracking by default.
+    EXPECT_TRUE(rollback_metrics_->EnableMetrics());
   }
 
   void TearDown() override {
@@ -97,6 +119,12 @@ class UmRealDevicePolicyProviderTest : public ::testing::Test {
   testing::NiceMock<policy::MockDevicePolicy> mock_device_policy_;
   testing::NiceMock<policy::MockPolicyProvider> mock_policy_provider_;
   unique_ptr<RealDevicePolicyProvider> provider_;
+  oobe_config::EnterpriseRollbackMetricsHandlerForTesting* rollback_metrics_;
+  // Need to keep the variable around for enterprise rollback tracking tests.
+  base::test::ScopedChromeOSVersionInfo version_info_{
+      base::StringPrintf("CHROMEOS_RELEASE_VERSION=%s",
+                         kDeviceVersionLsbRelease),
+      base::Time()};
 
   // The registered signal handler for the signal.
   MockSignalHandler<void(const string&)> property_change_complete_;
@@ -238,6 +266,241 @@ TEST_F(UmRealDevicePolicyProviderTest, RollbackToTargetVersionConverted) {
   UmTestUtils::ExpectVariableHasValue(
       RollbackToTargetVersion::kRollbackAndPowerwash,
       provider_->var_rollback_to_target_version());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       DoNoStartTrackingRollbackIfMetricsAreDisabled) {
+  ASSERT_TRUE(rollback_metrics_->DisableMetrics());
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(3), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndRestoreIfPossible,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, StartTrackingIfRollbackPoliciesAreSet) {
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(3), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndRestoreIfPossible,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForDeviceVersion(kDeviceVersion));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForTargetVersion(kTargetVersion));
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, RestartTrackingIfTargetVersionChanges) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(3), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndRestoreIfPossible,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForDeviceVersion(kDeviceVersion));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForTargetVersion(kTargetVersion));
+  ASSERT_EQ(1,
+            rollback_metrics_->TimesEventHasBeenTracked(
+                EnterpriseRollbackEvent::ROLLBACK_POLICY_ACTIVATED));
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       DoNotRestartTrackingIfTargetVersionDoesNotChange) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersion));
+  ASSERT_TRUE(rollback_metrics_->TrackEvent(
+      oobe_config::EnterpriseRollbackMetricsHandler::CreateEventData(
+          EnterpriseRollbackEvent::EVENT_UNSPECIFIED)));
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(3), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndRestoreIfPossible,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  // The content of the file has not been overwritten.
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForDeviceVersion(kDeviceVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingForTargetVersion(kTargetVersion));
+  ASSERT_EQ(1,
+            rollback_metrics_->TimesEventHasBeenTracked(
+                EnterpriseRollbackEvent::EVENT_UNSPECIFIED));
+  ASSERT_EQ(0,
+            rollback_metrics_->TimesEventHasBeenTracked(
+                EnterpriseRollbackEvent::ROLLBACK_POLICY_ACTIVATED));
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, StopTrackingRollbackIfNoPolicies) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       DoNotStopTrackingRollbackIfNoPoliciesButNotEnrolled) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       StopTrackingRollbackIfPolicyDoesNotRestore) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(2), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndPowerwash,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest, StopTrackingRollbackIfPolicyIsNotValid) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(-1), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       StopTrackingRollbackIfTargetVersionIsNotValid) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetRollbackToTargetVersion(_))
+      .WillRepeatedly(DoAll(SetArgPointee<0>(3), Return(true)));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kInvalidTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableHasValue(
+      RollbackToTargetVersion::kRollbackAndRestoreIfPossible,
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kInvalidTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
+}
+
+TEST_F(UmRealDevicePolicyProviderTest,
+       StopTrackingRollbackIfNoRollbackPolicyButTargetVersion) {
+  ASSERT_TRUE(rollback_metrics_->StartTrackingRollback(kDeviceVersionOld,
+                                                       kTargetVersionOld));
+  ASSERT_TRUE(rollback_metrics_->IsTrackingRollback());
+
+  SetUpExistentDevicePolicy();
+  EXPECT_CALL(mock_policy_provider_, IsEnterpriseEnrolledDevice())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_device_policy_, GetTargetVersionPrefix(_))
+      .WillRepeatedly(
+          DoAll(SetArgPointee<0>(kTargetVersionPolicy), Return(true)));
+  EXPECT_TRUE(provider_->Init());
+  loop_.RunOnce(false);
+  UmTestUtils::ExpectVariableNotSet(
+      provider_->var_rollback_to_target_version());
+  UmTestUtils::ExpectVariableHasValue(string(kTargetVersionPolicy),
+                                      provider_->var_target_version_prefix());
+
+  ASSERT_FALSE(rollback_metrics_->IsTrackingRollback());
 }
 
 TEST_F(UmRealDevicePolicyProviderTest, ScatterFactorConverted) {

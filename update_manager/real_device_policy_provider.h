@@ -24,6 +24,7 @@
 
 #include <brillo/message_loops/message_loop.h>
 #include <gtest/gtest_prod.h>  // for FRIEND_TEST
+#include <oobe_config/metrics/enterprise_rollback_metrics_handler.h>
 #include <policy/libpolicy.h>
 #include <session_manager/dbus-proxies.h>
 
@@ -38,11 +39,17 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   RealDevicePolicyProvider(
       std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
           session_manager_proxy,
-      policy::PolicyProvider* policy_provider)
+      policy::PolicyProvider* policy_provider,
+      std::unique_ptr<oobe_config::EnterpriseRollbackMetricsHandler>
+          rollback_metrics)
       : policy_provider_(policy_provider),
-        session_manager_proxy_(std::move(session_manager_proxy)) {}
+        session_manager_proxy_(std::move(session_manager_proxy)),
+        rollback_metrics_(std::move(rollback_metrics)) {}
   explicit RealDevicePolicyProvider(policy::PolicyProvider* policy_provider)
-      : policy_provider_(policy_provider) {}
+      : policy_provider_(policy_provider),
+        rollback_metrics_(
+            std::make_unique<oobe_config::EnterpriseRollbackMetricsHandler>()) {
+  }
   RealDevicePolicyProvider(const RealDevicePolicyProvider&) = delete;
   RealDevicePolicyProvider& operator=(const RealDevicePolicyProvider&) = delete;
 
@@ -209,6 +216,9 @@ class RealDevicePolicyProvider : public DevicePolicyProvider {
   // The DBus (mockable) session manager proxy.
   std::unique_ptr<org::chromium::SessionManagerInterfaceProxyInterface>
       session_manager_proxy_;
+
+  std::unique_ptr<oobe_config::EnterpriseRollbackMetricsHandler>
+      rollback_metrics_;
 
   // Variable exposing whether the policy is loaded.
   AsyncCopyVariable<bool> var_device_policy_is_loaded_{"policy_is_loaded",

@@ -23,6 +23,8 @@
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
+#include <base/types/expected.h>
+#include <oobe_config/metrics/enterprise_rollback_metrics_tracking.h>
 #include <policy/device_policy.h>
 
 #include "update_engine/common/connection_utils.h"
@@ -139,15 +141,65 @@ bool RealDevicePolicyProvider::ConvertRollbackToTargetVersion(
   int rollback_to_target_version_int;
   if (!policy_provider_->GetDevicePolicy().GetRollbackToTargetVersion(
           &rollback_to_target_version_int)) {
+    if (policy_provider_->IsEnterpriseEnrolledDevice() &&
+        policy_provider_->device_policy_is_loaded()) {
+      // Device is managed but Rollback policy is not set, clean tracking for
+      // any old Enterprise Rollback.
+      if (!oobe_config::CleanOutdatedTracking(*rollback_metrics_)) {
+        LOG(ERROR) << "Error cleaning up old Enterprise Rollback tracking.";
+      }
+    }
     return false;
   }
   if (rollback_to_target_version_int < 0 ||
       rollback_to_target_version_int >=
           static_cast<int>(RollbackToTargetVersion::kMaxValue)) {
+    if (!oobe_config::CleanOutdatedTracking(*rollback_metrics_)) {
+      LOG(ERROR) << "Error cleaning up old Enterprise Rollback tracking when "
+                    "wrong policy value is provided.";
+    }
     return false;
   }
+
   *rollback_to_target_version =
       static_cast<RollbackToTargetVersion>(rollback_to_target_version_int);
+
+  // Track Enterprise Rollback Metrics if the policy is enabled and we are
+  // preserving rollback data during powerwash. Clean old tracking otherwise.
+  switch (*rollback_to_target_version) {
+    case chromeos_update_manager::RollbackToTargetVersion::
+        kRollbackAndRestoreIfPossible: {
+      std::string target_version;
+      if (!policy_provider_->GetDevicePolicy().GetTargetVersionPrefix(
+              &target_version)) {
+        LOG(ERROR) << "Failed to read target version policy.";
+        break;
+      }
+
+      auto is_tracking_current_rollback =
+          oobe_config::IsTrackingForRollbackTargetVersion(*rollback_metrics_,
+                                                          target_version);
+      if (!is_tracking_current_rollback.has_value()) {
+        LOG(ERROR) << is_tracking_current_rollback.error();
+        if (!oobe_config::CleanOutdatedTracking(*rollback_metrics_)) {
+          LOG(ERROR) << "Error cleaning up old Enterprise Rollback tracking "
+                        "when error obtaining current tracking.";
+        }
+      } else if (!is_tracking_current_rollback.value()) {
+        if (!oobe_config::StartNewTracking(*rollback_metrics_,
+                                           target_version)) {
+          LOG(WARNING) << "Error starting new Enterprise Rollback tracking.";
+        }
+      }
+      break;
+    }
+    default:
+      if (!oobe_config::CleanOutdatedTracking(*rollback_metrics_)) {
+        LOG(ERROR) << "Error cleaning up old Enterprise Rollback metrics.";
+      }
+      break;
+  }
+
   return true;
 }
 

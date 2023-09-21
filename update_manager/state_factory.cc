@@ -19,6 +19,7 @@
 #include <memory>
 
 #include <base/logging.h>
+#include <oobe_config/metrics/enterprise_rollback_metrics_handler.h>
 #include <session_manager/dbus-proxies.h>
 
 #include "update_engine/common/system_state.h"
@@ -49,7 +50,8 @@ State* DefaultStateFactory(
   unique_ptr<RealDevicePolicyProvider> device_policy_provider(
       new RealDevicePolicyProvider(
           std::make_unique<org::chromium::SessionManagerInterfaceProxy>(bus),
-          policy_provider));
+          policy_provider,
+          std::make_unique<oobe_config::EnterpriseRollbackMetricsHandler>()));
   unique_ptr<RealShillProvider> shill_provider(
       new RealShillProvider(new chromeos_update_engine::ShillProxy()));
   unique_ptr<RealRandomProvider> random_provider(new RealRandomProvider());
@@ -60,8 +62,7 @@ State* DefaultStateFactory(
   unique_ptr<RealUpdaterProvider> updater_provider(new RealUpdaterProvider());
 
   if (!(config_provider->Init() && device_policy_provider->Init() &&
-        random_provider->Init() &&
-        shill_provider->Init() &&
+        random_provider->Init() && shill_provider->Init() &&
         system_provider->Init() && time_provider->Init() &&
         updater_provider->Init())) {
     LOG(ERROR) << "Error initializing providers";

@@ -25,7 +25,7 @@ import("//common-mk/proto_library.gni")
 import("//update_engine/tar_bunzip2.gni")
 
 group("all") {
-  deps = [":delta_generator"]
+  deps = [ ":delta_generator" ]
   if (!use.cros_host) {
     deps += [
       ":update_engine",
@@ -261,6 +261,7 @@ static_library("libupdate_engine") {
     "libcrossystem",
     "libcurl",
     "libdebugd-client",
+    "libenterprise_rollback_metrics",
     "libmetrics",
     "libpower_manager-client",
     "libsession_manager-client",
@@ -602,6 +603,7 @@ if (use.test) {
       "libchrome-test",
       "libcrossystem-test",
       "libdebugd-client-test",
+      "libenterprise_rollback_metrics-test",
       "libpower_manager-client-test",
       "libsession_manager-client-test",
       "libshill-client-test",
