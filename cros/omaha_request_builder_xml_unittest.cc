@@ -788,4 +788,75 @@ TEST_F(OmahaRequestBuilderXmlTest, GetRequestXmlHwCheckMissingCrosHealthd) {
       << request_xml;
 }
 
+TEST_F(OmahaRequestBuilderXmlTest, TargetVersionPrefixIsSent) {
+  params_.set_target_version_prefix("12345.");
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(
+      1, CountSubstringInString(request_xml, "targetversionprefix=\"12345.\""))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest, NormalUpdateDoesNotSendRollback) {
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "rollback_allowed="))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       RollbackAndTargetversionSendsRollbackAndTargetVersion) {
+  params_.set_target_version_prefix("12345.1.");
+  params_.set_rollback_allowed(true);
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "rollback_allowed=\"true\""))
+      << request_xml;
+  EXPECT_EQ(
+      1,
+      CountSubstringInString(request_xml, "targetversionprefix=\"12345.1.\""))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       RollbackWithoutTargetversionDoesNotRollback) {
+  params_.set_rollback_allowed(true);
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "rollback_allowed="))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       FsiVersionTakesPrecedenceOverActivateDateForEnterpriseRollback) {
+  params_.set_target_version_prefix("12345.1.");
+  params_.set_rollback_allowed(true);
+  params_.set_fsi_version("12345.6.7");
+  params_.set_activate_date("2023-05");
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "fsi_version=\"12345.6.7\""))
+      << request_xml;
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "activate_date="))
+      << request_xml;
+}
+
+TEST_F(OmahaRequestBuilderXmlTest,
+       ActivateDateIsSentOnEnterpriseRollbackIfNoFsiVersion) {
+  params_.set_target_version_prefix("12345.1.");
+  params_.set_rollback_allowed(true);
+  params_.set_activate_date("2023-05");
+
+  OmahaRequestBuilderXml omaha_request{nullptr, false, false, 0, 0, 0, ""};
+  const string request_xml = omaha_request.GetRequest();
+  EXPECT_EQ(0, CountSubstringInString(request_xml, "fsi_version="))
+      << request_xml;
+  EXPECT_EQ(1, CountSubstringInString(request_xml, "activate_date=\"2023-05\""))
+      << request_xml;
+}
+
 }  // namespace chromeos_update_engine

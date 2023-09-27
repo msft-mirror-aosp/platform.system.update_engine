@@ -334,4 +334,47 @@ TEST_F(OmahaRequestParamsTest, IsCommercialChannel) {
   EXPECT_FALSE(OmahaRequestParams::IsCommercialChannel("foo-channel"));
 }
 
+TEST_F(OmahaRequestParamsTest, NoFSIVersionResultsInEmptyString) {
+  FakeSystemState::Get()->fake_hardware()->SetFsiVersion("");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "");
+  EXPECT_EQ(params_.activate_date(), "");
+}
+
+TEST_F(OmahaRequestParamsTest, NoActivateDateResultsInEmptyString) {
+  FakeSystemState::Get()->fake_hardware()->SetActivateDate("");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "");
+  EXPECT_EQ(params_.activate_date(), "");
+}
+
+TEST_F(OmahaRequestParamsTest, FSIVersionComesFromHardware) {
+  FakeSystemState::Get()->fake_hardware()->SetFsiVersion("12345.1.1");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "12345.1.1");
+  EXPECT_EQ(params_.activate_date(), "");
+}
+
+TEST_F(OmahaRequestParamsTest, ActivateDateComesFromHardware) {
+  FakeSystemState::Get()->fake_hardware()->SetActivateDate("2022-00");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "");
+  EXPECT_EQ(params_.activate_date(), "2022-00");
+}
+
+TEST_F(OmahaRequestParamsTest, MalformatedFSIVersionIsIgnored) {
+  FakeSystemState::Get()->fake_hardware()->SetFsiVersion("1234.PATCH");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "");
+  EXPECT_EQ(params_.activate_date(), "");
+}
+
+TEST_F(OmahaRequestParamsTest, ImpossibleActivateDateIsIgnored) {
+  // Weeks go from 00 to 53.
+  FakeSystemState::Get()->fake_hardware()->SetActivateDate("2022-54");
+  EXPECT_TRUE(params_.Init("", "", {}));
+  EXPECT_EQ(params_.fsi_version(), "");
+  EXPECT_EQ(params_.activate_date(), "");
+}
+
 }  // namespace chromeos_update_engine

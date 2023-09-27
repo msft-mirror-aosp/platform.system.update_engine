@@ -181,6 +181,18 @@ class OmahaRequestParams {
     return rollback_allowed_milestones_;
   }
 
+  inline void set_activate_date(const std::string& activate_date) {
+    activate_date_ = activate_date;
+  }
+
+  inline std::string activate_date() const { return activate_date_; }
+
+  inline void set_fsi_version(const std::string& fsi_version) {
+    fsi_version_ = fsi_version;
+  }
+
+  inline std::string fsi_version() const { return fsi_version_; }
+
   inline void set_wall_clock_based_wait_enabled(bool enabled) {
     wall_clock_based_wait_enabled_ = enabled;
   }
@@ -432,6 +444,12 @@ class OmahaRequestParams {
   // roll-forward should happen.
   // Normally ss set by |OmahaRequestParamsPolicy|.
   int rollback_allowed_milestones_;
+
+  // FSI OS version of this device, as read from VPD.
+  std::string fsi_version_;
+
+  // Activate date in the form of "2023-04" of this device, as read from VPD.
+  std::string activate_date_;
 
   // True if scattering or staging are enabled, in which case waiting_period_
   // specifies the amount of absolute time that we've to wait for before sending

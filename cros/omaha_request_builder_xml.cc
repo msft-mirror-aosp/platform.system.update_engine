@@ -158,6 +158,17 @@ string OmahaRequestBuilderXml::GetAppBody(const OmahaAppData& app_data) const {
           // Rollback requires target_version_prefix set.
           if (params->rollback_allowed()) {
             app_body += " rollback_allowed=\"true\"";
+            // FSI version or activation date will help goldeneye decide whether
+            // it is safe to run a certain rollback image.
+            if (!params->fsi_version().empty()) {
+              app_body += base::StringPrintf(
+                  " fsi_version=\"%s\"",
+                  XmlEncodeWithDefault(params->fsi_version()).c_str());
+            } else if (!params->activate_date().empty()) {
+              app_body += base::StringPrintf(
+                  " activate_date=\"%s\"",
+                  XmlEncodeWithDefault(params->activate_date()).c_str());
+            }
           }
         }
         if (!params->release_lts_tag().empty()) {

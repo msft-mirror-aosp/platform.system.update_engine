@@ -29,9 +29,11 @@
 #include <base/logging.h>
 #include <base/strings/string_util.h>
 #include <base/strings/stringprintf.h>
+#include <base/version.h>
 #include <brillo/key_value_store.h>
 #include <brillo/strings/string_utils.h>
 #include <policy/device_policy.h>
+#include <re2/re2.h>
 
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/constants.h"
@@ -57,6 +59,21 @@ const char* kChannelsByStability[] = {
     kLtcChannel,
     kLtsChannel,
 };
+
+// Activate date should be the output of date --utc "+%Y-%W".
+bool IsValidActivateDate(const std::string& activate_date_from_vpd) {
+  unsigned int week_number;
+  if (!RE2::FullMatch(
+          activate_date_from_vpd, "\\d{4}-(\\d{2})", &week_number)) {
+    return false;
+  }
+  return week_number < 54;
+}
+
+bool IsValidFsiVersion(const std::string& fsi_version_from_vpd) {
+  return base::Version(fsi_version_from_vpd).IsValid();
+}
+
 }  // namespace
 
 constexpr char OmahaRequestParams::kOsVersion[] = "Indy";
@@ -170,6 +187,27 @@ bool OmahaRequestParams::Init(const string& app_version,
   rollback_allowed_ = false;
   rollback_data_save_requested_ = false;
   rollback_allowed_milestones_ = 0;
+
+  const auto& fsi_version_from_vpd =
+      SystemState::Get()->hardware()->GetFsiVersion();
+
+  if (IsValidFsiVersion(fsi_version_from_vpd)) {
+    fsi_version_ = fsi_version_from_vpd;
+    activate_date_ = "";
+  } else {
+    LOG(ERROR) << "None or invalid fsi version in vpd, value: "
+               << fsi_version_from_vpd;
+    fsi_version_ = "";
+    const auto& activate_date_from_vpd =
+        SystemState::Get()->hardware()->GetActivateDate();
+    if (IsValidActivateDate(activate_date_from_vpd)) {
+      activate_date_ = activate_date_from_vpd;
+    } else {
+      activate_date_ = "";
+      LOG(ERROR) << "None or invalid activate date in vpd, value: "
+                 << activate_date_from_vpd;
+    }
+  }
 
   // Set the target channel, if one was provided.
   if (params.target_channel.empty()) {

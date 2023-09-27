@@ -269,7 +269,7 @@ static_library("libupdate_engine") {
     "libupdate_engine-client",
     "vboot_host",
   ]
-  pkg_deps = []
+  pkg_deps = [ "re2" ]
   deps = [
     ":libpayload_consumer",
     ":update_engine-dbus-adaptor",
