@@ -202,6 +202,12 @@ class MetricsReporterInterface {
   // |UpdateEngine.UpdateInvalidated|
   virtual void ReportInvalidatedUpdate(bool success) = 0;
 
+  // Reports whether or not the enterprise update invalidation is completed
+  // successfully.
+  //
+  // |UpdateEngine.EnterpriseUpdateInvalidatedResult|
+  virtual void ReportEnterpriseUpdateInvalidatedResult(bool success) = 0;
+
   // Helper function to report the source of installation data. The following
   // metrics are reported:
   //

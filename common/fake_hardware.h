@@ -286,7 +286,17 @@ class FakeHardware : public HardwareInterface {
     return rootfs_verification_enabled_;
   }
 
-  bool ResetFWTryNextSlot() override { return reset_fw_try_next_slot_ = true; }
+  bool ResetFWTryNextSlot() override {
+    if (fail_reset_fw_try_next_slot_) {
+      return false;
+    }
+
+    return reset_fw_try_next_slot_ = true;
+  }
+
+  void SetFailResetFwTryNextSlot(bool value) {
+    fail_reset_fw_try_next_slot_ = value;
+  }
   bool IsFWTryNextSlotReset() const { return reset_fw_try_next_slot_; }
 
  private:
@@ -319,6 +329,7 @@ class FakeHardware : public HardwareInterface {
   mutable std::map<std::string, std::string> partition_timestamps_;
   bool rootfs_verification_enabled_{false};
   bool reset_fw_try_next_slot_{false};
+  bool fail_reset_fw_try_next_slot_{false};
 };
 
 }  // namespace chromeos_update_engine

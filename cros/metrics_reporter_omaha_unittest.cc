@@ -456,6 +456,42 @@ TEST_F(MetricsReporterOmahaTest, ReportTimeToReboot) {
   reporter_.ReportTimeToReboot(time_to_reboot_minutes);
 }
 
+TEST_F(MetricsReporterOmahaTest, ReportInvalidatedUpdateSuccess) {
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendBoolToUMA(metrics::kMetricInvalidatedUpdate, true))
+      .Times(1);
+
+  reporter_.ReportInvalidatedUpdate(true);
+}
+
+TEST_F(MetricsReporterOmahaTest, ReportInvalidatedUpdateFailure) {
+  EXPECT_CALL(*mock_metrics_lib_,
+              SendBoolToUMA(metrics::kMetricInvalidatedUpdate, false))
+      .Times(1);
+
+  reporter_.ReportInvalidatedUpdate(false);
+}
+
+TEST_F(MetricsReporterOmahaTest,
+       ReportEnterpriseUpdateInvalidatedResultSuccess) {
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendBoolToUMA(metrics::kMetricEnterpriseUpdateInvalidatedResult, true))
+      .Times(1);
+
+  reporter_.ReportEnterpriseUpdateInvalidatedResult(true);
+}
+
+TEST_F(MetricsReporterOmahaTest,
+       ReportEnterpriseUpdateInvalidatedResultFailure) {
+  EXPECT_CALL(
+      *mock_metrics_lib_,
+      SendBoolToUMA(metrics::kMetricEnterpriseUpdateInvalidatedResult, false))
+      .Times(1);
+
+  reporter_.ReportEnterpriseUpdateInvalidatedResult(false);
+}
+
 TEST_F(MetricsReporterOmahaTest, ReportInstallDateProvisioningSource) {
   int source = 2;
   int max = 5;

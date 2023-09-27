@@ -94,8 +94,10 @@ bool FakePrefs::Exists(const string& key) const {
 }
 
 bool FakePrefs::Delete(const string& key) {
-  if (values_.find(key) == values_.end())
-    return false;
+  if (values_.find(key) == values_.end()) {
+    return true;
+  }
+
   values_.erase(key);
   const auto observers_for_key = observers_.find(key);
   if (observers_for_key != observers_.end()) {

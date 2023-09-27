@@ -97,10 +97,11 @@ extern const char kMetricKernelMaxRollforwardVersion[];
 extern const char kMetricKernelMaxRollforwardSetSuccess[];
 
 // UpdateEngine.* metrics.
+extern const char kMetricEnterpriseUpdateInvalidatedResult[];
 extern const char kMetricFailedUpdateCount[];
 extern const char kMetricInstallDateProvisioningSource[];
-extern const char kMetricTimeToRebootMinutes[];
 extern const char kMetricInvalidatedUpdate[];
+extern const char kMetricTimeToRebootMinutes[];
 
 // UpdateEngine.ConsecutiveUpdate.* metrics.
 extern const char kMetricConsecutiveUpdateCount[];
@@ -165,6 +166,8 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportTimeToReboot(int time_to_reboot_minutes) override;
 
   void ReportInvalidatedUpdate(bool success) override;
+
+  void ReportEnterpriseUpdateInvalidatedResult(bool success) override;
 
   void ReportInstallDateProvisioningSource(int source, int max) override;
 

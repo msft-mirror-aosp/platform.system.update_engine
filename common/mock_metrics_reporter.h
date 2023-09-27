@@ -82,6 +82,11 @@ class MockMetricsReporter : public MetricsReporterInterface {
 
   MOCK_METHOD1(ReportInvalidatedUpdate, void(bool success));
 
+  MOCK_METHOD(void,
+              ReportEnterpriseUpdateInvalidatedResult,
+              (bool success),
+              (override));
+
   MOCK_METHOD2(ReportInstallDateProvisioningSource, void(int source, int max));
 
   MOCK_METHOD1(ReportInternalErrorCode, void(ErrorCode error_code));

@@ -126,7 +126,7 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   // Resets the boot slot and update markers to invalidate a previously existing
   // update if one is available.
-  void InvalidateUpdate();
+  bool InvalidateUpdate();
 
   // Returns the current status in the out param. Returns true on success.
   virtual bool GetStatus(update_engine::UpdateEngineStatus* out_status);
@@ -394,6 +394,8 @@ class UpdateAttempter : public ActionProcessorDelegate,
   FRIEND_TEST(UpdateAttempterTest,
               AfterRestartSkipsUpdateInvalidationIfNotIdle);
   FRIEND_TEST(UpdateAttempterTest, AfterUpdateInvalidatesUpdate);
+  FRIEND_TEST(UpdateAttempterTest, AfterUpdateInvalidatesUpdateMetrics);
+  FRIEND_TEST(UpdateAttempterTest, AfterUpdateInvalidatesUpdateFailureMetrics);
   FRIEND_TEST(UpdateAttempterTest, AfterUpdateSubscribesInvalidatesUpdate);
   FRIEND_TEST(UpdateAttempterTest,
               AfterUpdateSkipsUpdateInvalidationIfNonEnterprise);

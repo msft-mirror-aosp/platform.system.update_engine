@@ -125,11 +125,13 @@ const char kMetricCertificateCheckDownload[] =
     "UpdateEngine.CertificateCheck.Download";
 
 // UpdateEngine.* metrics.
+const char kMetricEnterpriseUpdateInvalidatedResult[] =
+    "UpdateEngine.EnterpriseUpdateInvalidatedResult";
 const char kMetricFailedUpdateCount[] = "UpdateEngine.FailedUpdateCount";
 const char kMetricInstallDateProvisioningSource[] =
     "UpdateEngine.InstallDateProvisioningSource";
-const char kMetricTimeToRebootMinutes[] = "UpdateEngine.TimeToRebootMinutes";
 const char kMetricInvalidatedUpdate[] = "UpdateEngine.UpdateInvalidated";
+const char kMetricTimeToRebootMinutes[] = "UpdateEngine.TimeToRebootMinutes";
 
 // UpdateEngine.ConsecutiveUpdate.* metrics.
 const char kMetricConsecutiveUpdateCount[] =
@@ -506,6 +508,12 @@ void MetricsReporterOmaha::ReportTimeToReboot(int time_to_reboot_minutes) {
 void MetricsReporterOmaha::ReportInvalidatedUpdate(bool successful) {
   string metric = metrics::kMetricInvalidatedUpdate;
   metrics_lib_->SendBoolToUMA(metric, successful);
+}
+
+void MetricsReporterOmaha::ReportEnterpriseUpdateInvalidatedResult(
+    bool success) {
+  string metric = metrics::kMetricEnterpriseUpdateInvalidatedResult;
+  metrics_lib_->SendBoolToUMA(metric, success);
 }
 
 void MetricsReporterOmaha::ReportInstallDateProvisioningSource(int source,

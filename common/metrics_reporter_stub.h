@@ -84,6 +84,8 @@ class MetricsReporterStub : public MetricsReporterInterface {
 
   void ReportInvalidatedUpdate(bool success) override {}
 
+  void ReportEnterpriseUpdateInvalidatedResult(bool success) override {}
+
   void ReportInstallDateProvisioningSource(int source, int max) override {}
 
   void ReportInternalErrorCode(ErrorCode error_code) override {}

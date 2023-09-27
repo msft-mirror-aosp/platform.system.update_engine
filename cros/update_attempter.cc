@@ -227,7 +227,10 @@ void UpdateAttempter::OnEnterpriseUpdateInvalidationCheck(
       status_ == UpdateStatus::UPDATED_NEED_REBOOT) {
     LOG(INFO) << "Received enterprise update invalidation signal. "
               << "Invalidating the pending update.";
-    InvalidateUpdate();
+    bool invalidation_result = InvalidateUpdate();
+    SystemState::Get()
+        ->metrics_reporter()
+        ->ReportEnterpriseUpdateInvalidatedResult(invalidation_result);
     ResetUpdateStatus();
   }
 
@@ -1760,10 +1763,10 @@ bool UpdateAttempter::ResetUpdatePrefs() {
   return ret_value;
 }
 
-void UpdateAttempter::InvalidateUpdate() {
+bool UpdateAttempter::InvalidateUpdate() {
   if (!GetBootTimeAtUpdate(nullptr)) {
     LOG(INFO) << "No previous update available to invalidate.";
-    return;
+    return true;
   }
 
   LOG(INFO) << "Invalidating previous update.";
@@ -1793,6 +1796,8 @@ void UpdateAttempter::InvalidateUpdate() {
   }
 
   SystemState::Get()->metrics_reporter()->ReportInvalidatedUpdate(success);
+
+  return success;
 }
 
 void UpdateAttempter::DownloadComplete() {
