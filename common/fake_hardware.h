@@ -174,6 +174,10 @@ class FakeHardware : public HardwareInterface {
     return true;
   }
 
+  std::string GetActivateDate() const override { return activate_date_; }
+
+  std::string GetFsiVersion() const override { return fsi_version_; }
+
   int GetActiveMiniOsPartition() const override { return 0; }
 
   bool SetActiveMiniOsPartition(int active_partition) override { return true; }
@@ -250,6 +254,14 @@ class FakeHardware : public HardwareInterface {
     recovery_key_version_ = version;
   }
 
+  void SetActivateDate(const std::string& activate_date) {
+    activate_date_ = activate_date;
+  }
+
+  void SetFsiVersion(const std::string& fsi_version) {
+    fsi_version_ = fsi_version;
+  }
+
   // Getters to verify state.
   int GetMaxKernelKeyRollforward() const { return kernel_max_rollforward_; }
 
@@ -300,6 +312,8 @@ class FakeHardware : public HardwareInterface {
   bool save_rollback_data_{false};
   int64_t build_timestamp_{0};
   bool first_active_omaha_ping_sent_{false};
+  std::string activate_date_{""};
+  std::string fsi_version_{""};
   bool warm_reset_{false};
   std::string recovery_key_version_;
   mutable std::map<std::string, std::string> partition_timestamps_;

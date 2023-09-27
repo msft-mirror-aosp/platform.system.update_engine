@@ -31,7 +31,7 @@
 
 namespace chromeos_update_engine {
 
-// The hardware interface allows access to the crossystem exposed properties,
+// The hardware interface allows access to the system properties,
 // such as the firmware version, hwid, verified boot mode.
 // These stateless functions are tied together in this interface to facilitate
 // unit testing.
@@ -152,6 +152,14 @@ class HardwareInterface {
   // Persist the fact that first active ping was sent to omaha and returns false
   // if failed to persist it.
   virtual bool SetFirstActiveOmahaPingSent() = 0;
+
+  // The week and year the device was activated in, if present in VPD.
+  // Format is "2023-03". Returns an empty string if not set or error.
+  virtual std::string GetActivateDate() const = 0;
+
+  // The FSI version as saved in VPD. This is an OS version, e.g. "13456.5.30".
+  // Returns an empty string if not set or error.
+  virtual std::string GetFsiVersion() const = 0;
 
   // Returns the MINIOS partition with the higher priority. 0 for A and 1 for B.
   virtual int GetActiveMiniOsPartition() const = 0;

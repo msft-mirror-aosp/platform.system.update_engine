@@ -95,6 +95,12 @@ const char* kConfigOptsIsOOBEEnabled = "is_oobe_enabled";
 
 const char* kActivePingKey = "first_active_omaha_ping_sent";
 
+// The week when the device was first used.
+const char* kActivateDateVpdKey = "ActivateDate";
+
+// The FSI version the device shipped with.
+const char* kFsiVersionVpdKey = "fsi_version";
+
 // Vboot MiniOS booting priority flag.
 const char kMiniOsPriorityFlag[] = "minios_priority";
 
@@ -468,6 +474,22 @@ bool HardwareChromeOS::SetFirstActiveOmahaPingSent() {
     LOG(INFO) << "dump_vpd_log succeeded but with error logs: " << error;
   }
   return true;
+}
+
+std::string HardwareChromeOS::GetActivateDate() const {
+  std::string activate_date;
+  if (!utils::GetVpdValue(kActivateDateVpdKey, &activate_date)) {
+    return "";
+  }
+  return activate_date;
+}
+
+std::string HardwareChromeOS::GetFsiVersion() const {
+  std::string fsi_version;
+  if (!utils::GetVpdValue(kFsiVersionVpdKey, &fsi_version)) {
+    return "";
+  }
+  return fsi_version;
 }
 
 std::unique_ptr<base::Value> HardwareChromeOS::ReadLocalState() const {
