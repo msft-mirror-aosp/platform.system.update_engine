@@ -111,9 +111,6 @@ constexpr TimeDelta kBroadcastThreshold = base::Seconds(10);
 const char kAUTestURLRequest[] = "autest";
 const char kScheduledAUTestURLRequest[] = "autest-scheduled";
 
-// The default DLC package name.
-constexpr char kDlcPackage[] = "package";
-
 string ConvertToString(ProcessMode op) {
   switch (op) {
     case ProcessMode::UPDATE:
@@ -838,8 +835,8 @@ void UpdateAttempter::CalculateDlcParams() {
   }
   map<string, OmahaRequestParams::AppParams> dlc_apps_params;
   for (const auto& dlc_id : dlc_ids_) {
-    const auto& manifest = utils::LoadDlcManifest(
-        imageloader::kDlcManifestRootpath, dlc_id, kDlcPackage);
+    const auto& manifest = SystemState::Get()->dlc_utils()->GetDlcManifest(
+        dlc_id, base::FilePath(imageloader::kDlcManifestRootpath));
     if (!manifest) {
       LOG(ERROR) << "Unable to load the manifest for DLC '" << dlc_id
                  << "', treat it as a non-critical DLC.";

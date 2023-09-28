@@ -18,9 +18,11 @@
 
 #include <base/logging.h>
 #include <brillo/errors/error.h>
+#include <chromeos/constants/imageloader.h>
 #include <dlcservice/proto_bindings/dlcservice.pb.h>
 // NOLINTNEXTLINE(build/include_alpha) "dbus-proxies.h" needs "dlcservice.pb.h"
 #include <dlcservice/dbus-proxies.h>
+#include <libdlcservice/utils.h>
 
 #include "update_engine/cros/dbus_connection.h"
 
@@ -37,6 +39,10 @@ org::chromium::DlcServiceInterfaceProxy GetDlcServiceProxy() {
 
 std::unique_ptr<DlcServiceInterface> CreateDlcService() {
   return std::make_unique<DlcServiceChromeOS>();
+}
+
+std::unique_ptr<DlcUtilsInterface> CreateDlcUtils() {
+  return std::make_unique<DlcUtilsChromeOS>();
 }
 
 bool DlcServiceChromeOS::GetDlcsToUpdate(vector<string>* dlc_ids) {
@@ -73,6 +79,11 @@ bool DlcServiceChromeOS::UpdateCompleted(const vector<string>& dlc_ids) {
     return false;
   }
   return true;
+}
+
+std::shared_ptr<imageloader::Manifest> DlcUtilsChromeOS::GetDlcManifest(
+    const std::string& id, const base::FilePath& dlc_manifest_path) {
+  return utils_.GetDlcManifest(id, dlc_manifest_path);
 }
 
 }  // namespace chromeos_update_engine

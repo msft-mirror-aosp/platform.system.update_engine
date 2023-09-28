@@ -33,6 +33,7 @@
 #include <brillo/message_loops/base_message_loop.h>
 #include <brillo/message_loops/message_loop.h>
 #include <brillo/message_loops/message_loop_utils.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <policy/libpolicy.h>
 #include <policy/mock_device_policy.h>
@@ -235,6 +236,7 @@ class UpdateAttempterTest : public ::testing::Test {
     FakeSystemState::Get()->set_connection_manager(&mock_connection_manager);
     FakeSystemState::Get()->set_update_attempter(&attempter_);
     FakeSystemState::Get()->set_dlcservice(&mock_dlcservice_);
+    FakeSystemState::Get()->set_dlc_utils(&mock_dlc_utils_);
 
     prefs_ = FakeSystemState::Get()->fake_prefs();
     certificate_checker_.reset(
@@ -329,6 +331,7 @@ class UpdateAttempterTest : public ::testing::Test {
   OpenSSLWrapper openssl_wrapper_;
   std::unique_ptr<CertificateChecker> certificate_checker_;
   MockDlcService mock_dlcservice_;
+  MockDlcUtils mock_dlc_utils_;
 
   NiceMock<MockActionProcessor>* processor_;
   NiceMock<MockConnectionManager> mock_connection_manager;
@@ -2462,6 +2465,8 @@ TEST_F(UpdateAttempterTest, SetStatusAndNotifyTest) {
 }
 
 TEST_F(UpdateAttempterTest, CalculateDlcParamsInstallTest) {
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest)
+      .WillOnce(testing::Return(nullptr));
   string dlc_id = "dlc0";
   attempter_.pm_ = ProcessMode::INSTALL;
   attempter_.dlc_ids_ = {dlc_id};
@@ -2488,6 +2493,8 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNoPrefFilesTest) {
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest)
+      .WillOnce(testing::Return(nullptr));
 
   attempter_.pm_ = ProcessMode::UPDATE;
   attempter_.CalculateDlcParams();
@@ -2512,6 +2519,8 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsNonParseableValuesTest) {
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest)
+      .WillOnce(testing::Return(nullptr));
 
   // Write non numeric values in the metadata files.
   auto active_key =
@@ -2543,6 +2552,8 @@ TEST_F(UpdateAttempterTest, CalculateDlcParamsValidValuesTest) {
   EXPECT_CALL(mock_dlcservice_, GetDlcsToUpdate(_))
       .WillOnce(
           DoAll(SetArgPointee<0>(std::vector<string>({dlc_id})), Return(true)));
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest)
+      .WillOnce(testing::Return(nullptr));
 
   // Write numeric values in the metadata files.
   auto active_key =

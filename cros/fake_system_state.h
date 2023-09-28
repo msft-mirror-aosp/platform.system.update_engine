@@ -34,6 +34,7 @@
 #include "update_engine/common/mock_prefs.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/cros/mock_connection_manager.h"
+#include "update_engine/cros/mock_dlc_utils.h"
 #include "update_engine/cros/mock_omaha_request_params.h"
 #include "update_engine/cros/mock_p2p_manager.h"
 #include "update_engine/cros/mock_payload_state.h"
@@ -117,6 +118,8 @@ class FakeSystemState : public SystemState {
 
   inline DlcServiceInterface* dlcservice() override { return dlcservice_; }
 
+  inline DlcUtilsInterface* dlc_utils() override { return dlc_utils_; }
+
   inline CrosHealthdInterface* cros_healthd() override { return cros_healthd_; }
 
   inline CallWrapperInterface* call_wrapper() override { return call_wrapper_; }
@@ -192,6 +195,10 @@ class FakeSystemState : public SystemState {
 
   inline void set_dlcservice(DlcServiceInterface* dlcservice) {
     dlcservice_ = dlcservice;
+  }
+
+  inline void set_dlc_utils(DlcUtilsInterface* dlc_utils) {
+    dlc_utils_ = dlc_utils;
   }
 
   inline void set_cros_healthd(CrosHealthdInterface* cros_healthd) {
@@ -310,6 +317,7 @@ class FakeSystemState : public SystemState {
   testing::NiceMock<MockP2PManager> mock_p2p_manager_;
   testing::NiceMock<MockPowerManager> mock_power_manager_;
   testing::StrictMock<MockCallWrapper> mock_call_wrapper_;
+  testing::StrictMock<MockDlcUtils> mock_dlc_utils_;
 
   // Pointers to objects that client code can override. They are initialized to
   // the default implementations above.
@@ -330,6 +338,7 @@ class FakeSystemState : public SystemState {
   DlcServiceInterface* dlcservice_;
   CrosHealthdInterface* cros_healthd_{&fake_cros_healthd_};
   CallWrapperInterface* call_wrapper_;
+  DlcUtilsInterface* dlc_utils_;
 
   // Other object pointers (not preinitialized).
   const policy::DevicePolicy* device_policy_;

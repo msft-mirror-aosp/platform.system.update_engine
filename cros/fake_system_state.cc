@@ -34,6 +34,7 @@ FakeSystemState::FakeSystemState()
       p2p_manager_(&mock_p2p_manager_),
       update_manager_(&fake_update_manager_),
       call_wrapper_(&mock_call_wrapper_),
+      dlc_utils_(&mock_dlc_utils_),
       device_policy_(nullptr),
       fake_system_rebooted_(false) {
   mock_payload_state_.Initialize();

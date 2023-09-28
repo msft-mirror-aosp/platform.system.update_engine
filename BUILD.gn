@@ -296,7 +296,10 @@ static_library("libupdate_engine") {
   }
 
   if (use.dlc) {
-    all_dependent_pkg_deps += [ "libdlcservice-client" ]
+    all_dependent_pkg_deps += [
+      "libdlcservice-client",
+      "libdlcservice-utils",
+    ]
   }
 
   if (use.hibernate) {

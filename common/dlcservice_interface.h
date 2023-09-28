@@ -21,6 +21,9 @@
 #include <string>
 #include <vector>
 
+#include <base/files/file_path.h>
+#include <libimageloader/manifest.h>
+
 namespace chromeos_update_engine {
 
 // The abstract dlcservice interface defines the interaction with the
@@ -48,9 +51,27 @@ class DlcServiceInterface {
   DlcServiceInterface() = default;
 };
 
+class DlcUtilsInterface {
+ public:
+  DlcUtilsInterface(const DlcUtilsInterface&) = delete;
+  DlcUtilsInterface& operator=(const DlcUtilsInterface&) = delete;
+
+  virtual ~DlcUtilsInterface() = default;
+
+  virtual std::shared_ptr<imageloader::Manifest> GetDlcManifest(
+      const std::string& id, const base::FilePath& dlc_manifest_path) = 0;
+
+ protected:
+  DlcUtilsInterface() = default;
+};
+
 // This factory function creates a new DlcServiceInterface instance for the
 // current platform.
 std::unique_ptr<DlcServiceInterface> CreateDlcService();
+
+// This factory function creates a new DlcUtilsInterface instance for the
+// current platform.
+std::unique_ptr<DlcUtilsInterface> CreateDlcUtils();
 
 }  // namespace chromeos_update_engine
 

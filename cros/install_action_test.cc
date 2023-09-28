@@ -16,6 +16,7 @@
 
 #include "update_engine/cros/install_action.h"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,7 @@
 #include "update_engine/common/mock_http_fetcher.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/cros/fake_system_state.h"
+#include "update_engine/cros/mock_dlc_utils.h"
 
 namespace chromeos_update_engine {
 
@@ -170,6 +172,7 @@ class InstallActionTest : public ::testing::Test {
         "foobar-dlc",
         /*slotting=*/"",
         /*manifest_dir=*/tempdir_.GetPath().Append("dlc").value());
+    FakeSystemState::Get()->set_dlc_utils(&mock_dlc_utils_);
   }
 
   base::ScopedTempDir tempdir_;
@@ -183,6 +186,8 @@ class InstallActionTest : public ::testing::Test {
   brillo::FakeMessageLoop loop_{nullptr};
 
   MockHttpFetcher* mock_http_fetcher_{nullptr};
+
+  MockDlcUtils mock_dlc_utils_;
 };
 
 class InstallActionTestSuite : public InstallActionTest,
@@ -201,12 +206,9 @@ TEST_P(InstallActionTestSuite, ManifestReadFailure) {
   processor_.set_delegate(&delegate_);
   processor_.EnqueueAction(std::move(install_action_));
 
-  ASSERT_TRUE(test_utils::WriteFileString(
-      tempdir_.GetPath()
-          .Append("dlc/foobar-dlc/package/imageloader.json")
-          .value(),
-      ""));
   delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest(testing::_, testing::_))
+      .WillOnce(testing::Return(nullptr));
 
   loop_.PostTask(
       FROM_HERE,
@@ -222,11 +224,8 @@ TEST_P(InstallActionTestSuite, PerformSuccessfulTest) {
   processor_.EnqueueAction(std::move(install_action_));
 
   auto manifest = GetParam();
-  ASSERT_TRUE(test_utils::WriteFileString(
-      tempdir_.GetPath()
-          .Append("dlc/foobar-dlc/package/imageloader.json")
-          .value(),
-      manifest));
+  auto manifest_ptr = std::make_shared<imageloader::Manifest>();
+  manifest_ptr->ParseManifest(manifest);
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
   delegate_.expected_code_ = ErrorCode::kSuccess;
@@ -237,6 +236,8 @@ TEST_P(InstallActionTestSuite, PerformSuccessfulTest) {
       "dlc/foobar-dlc/package",
       0,
       tempdir_.GetPath().Append("foobar-dlc-device").value());
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest(testing::_, testing::_))
+      .WillOnce(testing::Return(manifest_ptr));
 
   loop_.PostTask(
       FROM_HERE,
@@ -253,11 +254,8 @@ TEST_F(InstallActionTest, PerformInvalidOffsetTest) {
   processor_.EnqueueAction(std::move(install_action_));
 
   auto manifest = base::StringPrintf(kManifestTemplate, kDefaultSha, "1025");
-  ASSERT_TRUE(test_utils::WriteFileString(
-      tempdir_.GetPath()
-          .Append("dlc/foobar-dlc/package/imageloader.json")
-          .value(),
-      manifest));
+  auto manifest_ptr = std::make_shared<imageloader::Manifest>();
+  manifest_ptr->ParseManifest(manifest);
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
   delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
@@ -268,6 +266,8 @@ TEST_F(InstallActionTest, PerformInvalidOffsetTest) {
       "dlc/foobar-dlc/package",
       0,
       tempdir_.GetPath().Append("foobar-dlc-device").value());
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest(testing::_, testing::_))
+      .WillOnce(testing::Return(manifest_ptr));
 
   loop_.PostTask(
       FROM_HERE,
@@ -286,11 +286,8 @@ TEST_F(InstallActionTest, PerformInvalidShaTest) {
       kManifestTemplate,
       "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10deadbeef",
       kDefaultOffset);
-  ASSERT_TRUE(test_utils::WriteFileString(
-      tempdir_.GetPath()
-          .Append("dlc/foobar-dlc/package/imageloader.json")
-          .value(),
-      manifest));
+  auto manifest_ptr = std::make_shared<imageloader::Manifest>();
+  manifest_ptr->ParseManifest(manifest);
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
   delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
@@ -301,6 +298,8 @@ TEST_F(InstallActionTest, PerformInvalidShaTest) {
       "dlc/foobar-dlc/package",
       0,
       tempdir_.GetPath().Append("foobar-dlc-device").value());
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest(testing::_, testing::_))
+      .WillOnce(testing::Return(manifest_ptr));
 
   loop_.PostTask(
       FROM_HERE,
@@ -320,11 +319,8 @@ TEST_P(InstallActionTestSuite, TransferFailureFetchesFromBackup) {
   mock_http_fetcher_->FailTransfer(404);
 
   auto manifest = GetParam();
-  ASSERT_TRUE(test_utils::WriteFileString(
-      tempdir_.GetPath()
-          .Append("dlc/foobar-dlc/package/imageloader.json")
-          .value(),
-      manifest));
+  auto manifest_ptr = std::make_shared<imageloader::Manifest>();
+  manifest_ptr->ParseManifest(manifest);
   ASSERT_TRUE(test_utils::WriteFileString(
       tempdir_.GetPath().Append("etc/lsb-release").value(), kProperties));
   delegate_.expected_code_ = ErrorCode::kScaledInstallationError;
@@ -339,6 +335,8 @@ TEST_P(InstallActionTestSuite, TransferFailureFetchesFromBackup) {
       "dlc/foobar-dlc/package",
       0,
       tempdir_.GetPath().Append("foobar-dlc-device").value());
+  EXPECT_CALL(mock_dlc_utils_, GetDlcManifest(testing::_, testing::_))
+      .WillOnce(testing::Return(manifest_ptr));
 
   loop_.PostTask(
       FROM_HERE,

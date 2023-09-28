@@ -45,6 +45,7 @@ class BootControlInterface;
 class ConnectionManagerInterface;
 class CrosHealthdInterface;
 class DlcServiceInterface;
+class DlcUtilsInterface;
 class HardwareInterface;
 class HibernateInterface;
 class MetricsReporterInterface;
@@ -125,6 +126,9 @@ class SystemState {
 
   // Returns a pointer to the DlcServiceInterface singleton.
   virtual DlcServiceInterface* dlcservice() = 0;
+
+  // Returns a pointer to the DlcUtilsInterface singleton.
+  virtual DlcUtilsInterface* dlc_utils() = 0;
 
   // Returns a pointer to the CrosHealthdInteraface singleton.
   virtual CrosHealthdInterface* cros_healthd() = 0;

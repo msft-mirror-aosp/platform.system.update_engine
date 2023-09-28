@@ -117,6 +117,8 @@ class RealSystemState : public SystemState {
 
   DlcServiceInterface* dlcservice() override { return dlcservice_.get(); }
 
+  DlcUtilsInterface* dlc_utils() override { return dlc_utils_.get(); }
+
   CrosHealthdInterface* cros_healthd() override { return cros_healthd_.get(); }
 
   CallWrapperInterface* call_wrapper() override { return call_wrapper_.get(); }
@@ -135,6 +137,9 @@ class RealSystemState : public SystemState {
 
   // Interface for dlcservice.
   std::unique_ptr<DlcServiceInterface> dlcservice_;
+
+  // Interface for dlc_utils.
+  std::unique_ptr<DlcUtilsInterface> dlc_utils_;
 
   // Interface for cros_healthd.
   std::unique_ptr<CrosHealthdInterface> cros_healthd_;

@@ -340,13 +340,6 @@ std::string GetExclusionName(const std::string& str_to_convert);
 ErrorCode IsTimestampNewer(const std::string& old_version,
                            const std::string& new_version);
 
-// Load and parse a DLC manifest file and return a pointer to the manifest
-// object. A nullptr will be returned on failure.
-std::shared_ptr<imageloader::Manifest> LoadDlcManifest(
-    const std::string& manifest_dir,
-    const std::string& id,
-    const std::string& package);
-
 }  // namespace utils
 
 // Utility class to close a file descriptor

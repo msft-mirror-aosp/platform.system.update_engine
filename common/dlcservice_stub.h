@@ -17,6 +17,7 @@
 #ifndef UPDATE_ENGINE_COMMON_DLCSERVICE_STUB_H_
 #define UPDATE_ENGINE_COMMON_DLCSERVICE_STUB_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,18 @@ class DlcServiceStub : public DlcServiceInterface {
   bool GetDlcsToUpdate(std::vector<std::string>* dlc_ids) override;
   bool InstallCompleted(const std::vector<std::string>& dlc_ids) override;
   bool UpdateCompleted(const std::vector<std::string>& dlc_ids) override;
+};
+
+class DlcUtilsStub : public DlcUtilsInterface {
+ public:
+  DlcUtilsStub() = default;
+  DlcUtilsStub(const DlcUtilsStub&) = delete;
+  DlcUtilsStub& operator=(const DlcUtilsStub&) = delete;
+
+  ~DlcUtilsStub() = default;
+
+  std::shared_ptr<imageloader::Manifest> GetDlcManifest(
+      const std::string& id, const base::FilePath& dlc_manifest_path) override;
 };
 
 }  // namespace chromeos_update_engine

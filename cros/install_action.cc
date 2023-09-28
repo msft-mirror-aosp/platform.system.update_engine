@@ -31,6 +31,7 @@
 #include <libimageloader/manifest.h>
 
 #include "update_engine/common/boot_control.h"
+#include "update_engine/common/dlcservice_interface.h"
 #include "update_engine/common/system_state.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/cros/image_properties.h"
@@ -64,7 +65,8 @@ InstallAction::~InstallAction() {}
 void InstallAction::PerformAction() {
   LOG(INFO) << "InstallAction performing action.";
 
-  manifest_ = utils::LoadDlcManifest(manifest_dir_, id_, kDefaultPackage);
+  manifest_ = SystemState::Get()->dlc_utils()->GetDlcManifest(
+      id_, base::FilePath(manifest_dir_));
   if (!manifest_) {
     LOG(ERROR) << "Could not retrieve manifest for " << id_;
     processor_->ActionComplete(this, ErrorCode::kScaledInstallationError);

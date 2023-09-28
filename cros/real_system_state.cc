@@ -20,12 +20,14 @@
 #include <string>
 #include <utility>
 
+#include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
 #include <base/time/time.h>
 #include <brillo/message_loops/message_loop.h>
+#include <chromeos/constants/imageloader.h>
 #include <chromeos/dbus/service_constants.h>
 
 #include "update_engine/common/boot_control.h"
@@ -75,6 +77,12 @@ bool RealSystemState::Initialize() {
   dlcservice_ = CreateDlcService();
   if (!dlcservice_) {
     LOG(ERROR) << "Error initializing the DlcServiceInterface.";
+    return false;
+  }
+
+  dlc_utils_ = CreateDlcUtils();
+  if (!dlc_utils_) {
+    LOG(ERROR) << "Error initializing the DlcUtilsInterface.";
     return false;
   }
 
