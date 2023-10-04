@@ -75,12 +75,6 @@ cc_defaults {
     ],
     ldflags: ["-Wl,--gc-sections"],
 
-    product_variables: {
-        pdk: {
-            enabled: false,
-        },
-    },
-
     target: {
         android: {
             cflags: [
@@ -348,8 +342,7 @@ cc_defaults {
         "libcutils",
         "libfs_mgr_binder",
         "libgsi",
-        "libsnapshot",
-        "libsnapshot_cow",
+        "libsnapshot_static",
         "libstatslog_ue",
         "libz",
     ],
@@ -375,7 +368,7 @@ cc_defaults {
             ],
             exclude_static_libs: [
                 "libfs_mgr_binder",
-                "libsnapshot",
+                "libsnapshot_static",
                 "libstatslog_ue"
             ],
         },

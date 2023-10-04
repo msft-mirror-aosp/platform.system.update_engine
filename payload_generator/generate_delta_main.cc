@@ -445,6 +445,11 @@ DEFINE_bool(enable_lz4diff,
             false,
             "Whether to enable LZ4diff feature when processing EROFS images.");
 
+DEFINE_bool(enable_puffdiff,
+            true,
+            "Whether to enable puffdiff feature. Enabling puffdiff will take "
+            "longer but generated OTA will be smaller.");
+
 DEFINE_bool(
     enable_zucchini,
     true,
@@ -465,7 +470,7 @@ void RoundDownPartitions(const ImageConfig& config) {
     if (part.path.empty()) {
       continue;
     }
-    const auto size = utils::FileSize(part.path);
+    const auto size = std::max<size_t>(utils::FileSize(part.path), kBlockSize);
     if (size % kBlockSize != 0) {
       const auto err =
           truncate(part.path.c_str(), size / kBlockSize * kBlockSize);
@@ -612,6 +617,7 @@ int Main(int argc, char** argv) {
   payload_config.enable_vabc_xor = FLAGS_enable_vabc_xor;
   payload_config.enable_lz4diff = FLAGS_enable_lz4diff;
   payload_config.enable_zucchini = FLAGS_enable_zucchini;
+  payload_config.enable_puffdiff = FLAGS_enable_puffdiff;
 
   payload_config.ParseCompressorTypes(FLAGS_compressor_types);
 
@@ -733,6 +739,10 @@ int Main(int argc, char** argv) {
     if (payload_config.is_delta) {
       LOG(FATAL) << "Minor version is required for delta update!";
       return 1;
+    } else if (FLAGS_is_partial_update) {
+      payload_config.version.minor = kPartialUpdateMinorPayloadVersion;
+      LOG(INFO) << "Using minor_version=" << payload_config.version.minor
+                << " for partial updates";
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
       LOG(INFO) << "Using non-delta minor_version="

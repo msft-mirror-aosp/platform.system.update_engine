@@ -55,7 +55,8 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                                   uint32_t target_slot,
                                   const DeltaArchiveManifest& manifest,
                                   bool update,
-                                  uint64_t* required_size) override;
+                                  uint64_t* required_size,
+                                  ErrorCode* error = nullptr) override;
   bool FinishUpdate(bool powerwash_required) override;
   std::unique_ptr<AbstractAction> GetCleanupPreviousUpdateAction(
       BootControlInterface* boot_control,
@@ -101,7 +102,7 @@ class DynamicPartitionControlAndroid : public DynamicPartitionControlInterface {
                           std::string* device);
 
   // Partition name is expected to be unsuffixed. e.g. system, vendor
-  // Return an interface to write to a snapshoted partition.
+  // Return an interface to write to a snapshotted partition.
   std::unique_ptr<android::snapshot::ICowWriter> OpenCowWriter(
       const std::string& unsuffixed_partition_name,
       const std::optional<std::string>& source_path,
