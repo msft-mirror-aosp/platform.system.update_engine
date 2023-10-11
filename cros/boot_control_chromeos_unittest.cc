@@ -154,6 +154,7 @@ TEST_F(BootControlChromeOSTest, GetMiniOSVersionTest) {
   EXPECT_FALSE(bootctl_.GetMiniOSVersion(output, &value));
 }
 
+#if USE_LVM_STATEFUL_PARTITION
 TEST_F(BootControlChromeOSTest, IsLvmStackEnabledTest) {
   std::optional<brillo::PhysicalVolume> opt;
   opt = brillo::PhysicalVolume(base::FilePath("/foo/bar"), nullptr);
@@ -175,5 +176,6 @@ TEST_F(BootControlChromeOSTest, IsLvmStackEnabledInvalidPhysicalVolumeTest) {
   // Check caching too.
   EXPECT_FALSE(bootctl_.IsLvmStackEnabled(&mock_lvm));
 }
+#endif  // USE_LVM_STATEFUL_PARTITION
 
 }  // namespace chromeos_update_engine
