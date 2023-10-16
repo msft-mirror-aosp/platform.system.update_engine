@@ -470,7 +470,7 @@ void RoundDownPartitions(const ImageConfig& config) {
     if (part.path.empty()) {
       continue;
     }
-    const auto size = utils::FileSize(part.path);
+    const auto size = std::max<size_t>(utils::FileSize(part.path), kBlockSize);
     if (size % kBlockSize != 0) {
       const auto err =
           truncate(part.path.c_str(), size / kBlockSize * kBlockSize);
@@ -736,8 +736,12 @@ int Main(int argc, char** argv) {
   if (FLAGS_minor_version == -1) {
     // Autodetect minor_version by looking at the update_engine.conf in the old
     // image.
-    if (payload_config.is_delta) {
-      LOG(FATAL) << "Minor version is required for delta update!";
+    if (FLAGS_is_partial_update) {
+      payload_config.version.minor = kPartialUpdateMinorPayloadVersion;
+      LOG(INFO) << "Using minor_version=" << payload_config.version.minor
+                << " for partial updates";
+    } else if (payload_config.is_delta) {
+      LOG(FATAL) << "Minor version is required for complete delta update!";
       return 1;
     } else {
       payload_config.version.minor = kFullPayloadMinorVersion;
