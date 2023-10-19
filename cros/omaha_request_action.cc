@@ -1123,8 +1123,7 @@ bool OmahaRequestAction::HasInstallDate() {
 
 // static
 bool OmahaRequestAction::PersistInstallDate(
-    int install_date_days,
-    InstallDateProvisioningSource source) {
+    int install_date_days, InstallDateProvisioningSource source) {
   TEST_AND_RETURN_FALSE(install_date_days >= 0);
 
   auto* prefs = SystemState::Get()->prefs();

@@ -299,12 +299,8 @@ class BooleanPrefVariable
     : public AsyncCopyVariable<bool>,
       public chromeos_update_engine::PrefsInterface::ObserverInterface {
  public:
-  BooleanPrefVariable(const string& name,
-                      const char* key,
-                      bool default_val)
-      : AsyncCopyVariable<bool>(name),
-        key_(key),
-        default_val_(default_val) {
+  BooleanPrefVariable(const string& name, const char* key, bool default_val)
+      : AsyncCopyVariable<bool>(name), key_(key), default_val_(default_val) {
     SystemState::Get()->prefs()->AddObserver(key, this);
     OnPrefSet(key);
   }

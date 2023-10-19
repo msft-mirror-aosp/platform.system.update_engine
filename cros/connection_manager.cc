@@ -113,9 +113,8 @@ bool ConnectionManager::IsAllowedConnectionTypesForUpdateSet() const {
   return true;
 }
 
-bool ConnectionManager::GetConnectionProperties(
-    ConnectionType* out_type,
-    bool* out_metered) {
+bool ConnectionManager::GetConnectionProperties(ConnectionType* out_type,
+                                                bool* out_metered) {
   dbus::ObjectPath default_service_path;
   TEST_AND_RETURN_FALSE(GetDefaultServicePath(&default_service_path));
   if (!default_service_path.IsValid())
@@ -148,10 +147,9 @@ bool ConnectionManager::GetDefaultServicePath(dbus::ObjectPath* out_path) {
   return out_path->IsValid();
 }
 
-bool ConnectionManager::GetServicePathProperties(
-    const dbus::ObjectPath& path,
-    ConnectionType* out_type,
-    bool* out_metered) {
+bool ConnectionManager::GetServicePathProperties(const dbus::ObjectPath& path,
+                                                 ConnectionType* out_type,
+                                                 bool* out_metered) {
   // We create and dispose the ServiceProxyInterface on every request.
   std::unique_ptr<ServiceProxyInterface> service =
       shill_proxy_->GetServiceForPath(path);

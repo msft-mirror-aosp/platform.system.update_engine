@@ -555,8 +555,7 @@ void MetricsReporterOmaha::ReportFailedConsecutiveUpdate() {
 }
 
 bool MetricsReporterOmaha::WallclockDurationHelper(
-    const std::string& state_variable_key,
-    TimeDelta* out_duration) {
+    const std::string& state_variable_key, TimeDelta* out_duration) {
   bool ret = false;
   Time now = SystemState::Get()->clock()->GetWallclockTime();
   int64_t stored_value;

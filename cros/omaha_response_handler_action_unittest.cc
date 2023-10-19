@@ -92,8 +92,7 @@ class OmahaResponseHandlerActionTest : public ::testing::Test {
 
   // Return true iff the OmahaResponseHandlerAction succeeded.
   // If out is non-null, it's set w/ the response from the action.
-  bool DoTest(const OmahaResponse& in,
-              InstallPlan* out);
+  bool DoTest(const OmahaResponse& in, InstallPlan* out);
 
   // Delegate passed to the ActionProcessor.
   OmahaResponseHandlerActionProcessorDelegate delegate_;
