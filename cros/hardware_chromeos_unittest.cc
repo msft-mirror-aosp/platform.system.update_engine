@@ -17,6 +17,7 @@
 #include "update_engine/cros/hardware_chromeos.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include <base/files/file_util.h>
@@ -465,6 +466,59 @@ TEST_F(HardwareChromeOSTest, ResetFWTryNextSlotFailsIfSettingTryCountFails) {
   bool result = hardware_.ResetFWTryNextSlot();
 
   ASSERT_FALSE(result);
+}
+
+TEST_F(HardwareChromeOSTest, IsPowerwashScheduledByUpdateEngineValidReason) {
+  base::FilePath root_path = root_dir_.GetPath();
+  hardware_.SetRootForTest(root_path);
+  base::FilePath marker_path = hardware_.GetPowerwashMarkerFullPath();
+  std::string marker_contents = "safe reason=update_engine\n test_key";
+  ASSERT_TRUE(brillo::TouchFile(marker_path));
+  ASSERT_TRUE(base::WriteFile(marker_path, marker_contents));
+
+  std::optional<bool> result = hardware_.IsPowerwashScheduledByUpdateEngine();
+
+  EXPECT_TRUE(result);
+  EXPECT_TRUE(result.value());
+}
+
+TEST_F(HardwareChromeOSTest, IsPowerwashScheduledByUpdateEngineNoMarker) {
+  base::FilePath root_path = root_dir_.GetPath();
+  hardware_.SetRootForTest(root_path);
+  base::FilePath marker_path = hardware_.GetPowerwashMarkerFullPath();
+  ASSERT_FALSE(base::PathExists(marker_path));
+
+  std::optional<bool> result = hardware_.IsPowerwashScheduledByUpdateEngine();
+
+  EXPECT_FALSE(result);
+}
+
+TEST_F(HardwareChromeOSTest, IsPowerwashScheduledByUpdateEngineNoReasonKey) {
+  base::FilePath root_path = root_dir_.GetPath();
+  hardware_.SetRootForTest(root_path);
+  base::FilePath marker_path = hardware_.GetPowerwashMarkerFullPath();
+  std::string marker_contents = "safe reason test_key";
+  ASSERT_TRUE(brillo::TouchFile(marker_path));
+  ASSERT_TRUE(base::WriteFile(marker_path, marker_contents));
+
+  std::optional<bool> result = hardware_.IsPowerwashScheduledByUpdateEngine();
+
+  EXPECT_TRUE(result);
+  EXPECT_FALSE(result.value());
+}
+
+TEST_F(HardwareChromeOSTest, IsPowerwashScheduledByUpdateEngineEmptyReason) {
+  base::FilePath root_path = root_dir_.GetPath();
+  hardware_.SetRootForTest(root_path);
+  base::FilePath marker_path = hardware_.GetPowerwashMarkerFullPath();
+  std::string marker_contents = "safe reason=\n test_key";
+  ASSERT_TRUE(brillo::TouchFile(marker_path));
+  ASSERT_TRUE(base::WriteFile(marker_path, marker_contents));
+
+  std::optional<bool> result = hardware_.IsPowerwashScheduledByUpdateEngine();
+
+  EXPECT_TRUE(result);
+  EXPECT_FALSE(result.value());
 }
 
 }  // namespace chromeos_update_engine

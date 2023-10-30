@@ -16,6 +16,7 @@
 
 #include "update_engine/cros/hardware_chromeos.h"
 
+#include <optional>
 #include <utility>
 
 #include <base/files/file_path.h>
@@ -64,10 +65,14 @@ const char kPowerwashSafeDirectory[] =
 // a powerwash is performed.
 const char kPowerwashCountMarker[] = "powerwash_count";
 
-// The name of the marker file used to trigger powerwash when post-install
+// The path of the marker file used to trigger powerwash when post-install
 // completes successfully so that the device is powerwashed on next reboot.
-const char kPowerwashMarkerFile[] =
-    "/mnt/stateful_partition/factory_install_reset";
+constexpr char kPowerwashMarkerPath[] =
+    "mnt/stateful_partition/factory_install_reset";
+
+// Expected tag in the powerwash marker file that indicates that
+// powerwash is initiated by the update engine.
+constexpr char kPowerwashReasonUpdateEngineTag[] = "reason=update_engine";
 
 // The name of the marker file used to trigger a save of rollback data
 // during the next shutdown.
@@ -326,29 +331,52 @@ bool HardwareChromeOS::SchedulePowerwash(bool save_rollback_data) {
   }
 
   auto powerwash_command = GeneratePowerwashCommand(save_rollback_data);
-  bool result = utils::WriteFile(
-      kPowerwashMarkerFile, powerwash_command.data(), powerwash_command.size());
+  const std::string powerwash_marker_full_path =
+      GetPowerwashMarkerFullPath().value();
+  bool result = utils::WriteFile(powerwash_marker_full_path.c_str(),
+                                 powerwash_command.data(),
+                                 powerwash_command.size());
   if (result) {
-    LOG(INFO) << "Created " << kPowerwashMarkerFile
+    LOG(INFO) << "Created " << powerwash_marker_full_path
               << " to powerwash on next reboot ("
               << "save_rollback_data=" << save_rollback_data << ")";
   } else {
     PLOG(ERROR) << "Error in creating powerwash marker file: "
-                << kPowerwashMarkerFile;
+                << powerwash_marker_full_path;
   }
 
   return result;
 }
 
+std::optional<bool> HardwareChromeOS::IsPowerwashScheduledByUpdateEngine()
+    const {
+  const std::string powerwash_marker_full_path =
+      GetPowerwashMarkerFullPath().value();
+
+  if (!utils::FileExists(powerwash_marker_full_path.c_str())) {
+    return std::nullopt;
+  }
+
+  std::string contents;
+  if (!utils::ReadFile(powerwash_marker_full_path, &contents)) {
+    LOG(ERROR) << "Failed to read the powerwash marker file.";
+    return false;
+  }
+
+  return contents.find(kPowerwashReasonUpdateEngineTag) != std::string::npos;
+}
+
 bool HardwareChromeOS::CancelPowerwash() {
-  bool result = base::DeleteFile(base::FilePath(kPowerwashMarkerFile));
+  const base::FilePath powerwash_marker_full_path =
+      GetPowerwashMarkerFullPath();
+  bool result = base::DeleteFile(powerwash_marker_full_path);
 
   if (result) {
     LOG(INFO) << "Successfully deleted the powerwash marker file : "
-              << kPowerwashMarkerFile;
+              << powerwash_marker_full_path;
   } else {
     PLOG(ERROR) << "Could not delete the powerwash marker file : "
-                << kPowerwashMarkerFile;
+                << powerwash_marker_full_path;
   }
 
   // Delete the rollback save marker file if it existed.
@@ -659,6 +687,10 @@ bool HardwareChromeOS::SetFWTryCount(int count) {
   }
 
   return true;
+}
+
+base::FilePath HardwareChromeOS::GetPowerwashMarkerFullPath() const {
+  return root_.Append(kPowerwashMarkerPath);
 }
 
 }  // namespace chromeos_update_engine

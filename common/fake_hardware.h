@@ -19,6 +19,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -299,6 +300,17 @@ class FakeHardware : public HardwareInterface {
   }
   bool IsFWTryNextSlotReset() const { return reset_fw_try_next_slot_; }
 
+  std::optional<bool> IsPowerwashScheduledByUpdateEngine() const override {
+    return is_powerwash_scheduled_by_update_engine_;
+  }
+  void SetIsPowerwashScheduledByUpdateEngine(std::optional<bool> value) {
+    is_powerwash_scheduled_by_update_engine_ = value;
+  }
+
+  base::FilePath GetPowerwashMarkerFullPath() const override {
+    return base::FilePath();
+  };
+
  private:
   bool is_official_build_{true};
   bool is_normal_boot_mode_{true};
@@ -318,6 +330,7 @@ class FakeHardware : public HardwareInterface {
   int kernel_max_rollforward_{kKernelMaxRollforward};
   int firmware_max_rollforward_{kFirmwareMaxRollforward};
   int powerwash_count_{kPowerwashCountNotSet};
+  std::optional<bool> is_powerwash_scheduled_by_update_engine_{true};
   bool powerwash_scheduled_{false};
   bool save_rollback_data_{false};
   int64_t build_timestamp_{0};

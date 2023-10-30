@@ -1779,9 +1779,19 @@ bool UpdateAttempter::InvalidateUpdate() {
   }
 
   LOG(INFO) << "Clearing powerwash and rollback flags, if any.";
-  if (!SystemState::Get()->hardware()->CancelPowerwash()) {
-    LOG(WARNING) << "Failed to cancel powerwash. Continuing anyway.";
-    success = false;
+  const std::optional<bool> is_powerwash_scheduled_by_update_engine =
+      SystemState::Get()->hardware()->IsPowerwashScheduledByUpdateEngine();
+  if (!is_powerwash_scheduled_by_update_engine) {
+    LOG(INFO) << "Powerwash is not scheduled, continuing.";
+  } else if (!is_powerwash_scheduled_by_update_engine.value()) {
+    LOG(INFO) << "Not cancelling powerwash. Either not initiated by update "
+                 "engine or there was a parsing error.";
+  } else {
+    LOG(INFO) << "Cancelling powerwash that was initiated by update engine.";
+    if (!SystemState::Get()->hardware()->CancelPowerwash()) {
+      LOG(WARNING) << "Failed to cancel powerwash. Continuing anyway.";
+      success = false;
+    }
   }
   SystemState::Get()->payload_state()->SetRollbackHappened(false);
 

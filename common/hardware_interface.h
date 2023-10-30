@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -115,6 +116,12 @@ class HardwareInterface {
   // recovery don't have this value set.
   virtual int GetPowerwashCount() const = 0;
 
+  // Parses the powerwash marker file and returns if powerwash is
+  // initiated by update engine. If the file is not found, returns
+  // std::nullopt. If parsing failed, returns false.
+  // Otherwise returns if a marker file contains reason=update_engine.
+  virtual std::optional<bool> IsPowerwashScheduledByUpdateEngine() const = 0;
+
   // Signals that a powerwash (stateful partition wipe) should be performed
   // after reboot. If |save_rollback_data| is true additional state is
   // preserved during shutdown that can be restored after the powerwash.
@@ -199,6 +206,9 @@ class HardwareInterface {
   // Resets a RW firmware partition slot to try on next boot to a current slot.
   // Returns false on failure, true on success.
   virtual bool ResetFWTryNextSlot() = 0;
+
+  // Returns an absolute path to a powerwash marker file.
+  virtual base::FilePath GetPowerwashMarkerFullPath() const = 0;
 };
 
 }  // namespace chromeos_update_engine

@@ -18,6 +18,7 @@
 #define UPDATE_ENGINE_CROS_HARDWARE_CHROMEOS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,6 +63,7 @@ class HardwareChromeOS final : public HardwareInterface {
   bool SetMaxFirmwareKeyRollforward(int firmware_max_rollforward) override;
   bool SetMaxKernelKeyRollforward(int kernel_max_rollforward) override;
   int GetPowerwashCount() const override;
+  std::optional<bool> IsPowerwashScheduledByUpdateEngine() const override;
   // Must not be called prior to boot control initialization.
   bool SchedulePowerwash(bool save_rollback_data) override;
   bool CancelPowerwash() override;
@@ -90,6 +92,8 @@ class HardwareChromeOS final : public HardwareInterface {
   }
 
   bool ResetFWTryNextSlot() override;
+
+  base::FilePath GetPowerwashMarkerFullPath() const override;
 
  private:
   friend class HardwareChromeOSTest;
