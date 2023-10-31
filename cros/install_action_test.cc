@@ -42,7 +42,6 @@ constexpr char kArtifactsMetaSomeUri[] = "some/uri/path";
 constexpr char kManifestTemplate[] =
     R"({
   "critical-update": false,
-  "days-to-purge": 5,
   "description": "A FOOBAR DLC",
   "factory-install": false,
   "fs-type": "squashfs",
@@ -61,13 +60,11 @@ constexpr char kManifestTemplate[] =
   "size": "%s",
   "table-sha256-hash": )"
     R"("44a4e688209bda4e06fd41aadc85a51de7d74a641275cb63b7caead96a9b03b7",
-  "used-by": "system",
   "version": "1.0.0-r1"
 })";
 constexpr char kManifestWithArtifactsMetaTemplate[] =
     R"({
   "critical-update": false,
-  "days-to-purge": 5,
   "description": "A FOOBAR DLC",
   "factory-install": false,
   "fs-type": "squashfs",
@@ -87,7 +84,6 @@ constexpr char kManifestWithArtifactsMetaTemplate[] =
   "size": "1024",
   "table-sha256-hash": )"
     R"("44a4e688209bda4e06fd41aadc85a51de7d74a641275cb63b7caead96a9b03b7",
-  "used-by": "system",
   "version": "1.0.0-r1",
   "artifacts-meta": {
     "uri": "%s"
