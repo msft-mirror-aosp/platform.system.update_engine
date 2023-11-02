@@ -69,8 +69,6 @@ extern const char kMetricSuccessfulUpdateAttemptCount[];
 extern const char kMetricSuccessfulUpdateBytesDownloadedMiB[];
 extern const char kMetricSuccessfulUpdateDownloadOverheadPercentage[];
 extern const char kMetricSuccessfulUpdateDownloadSourcesUsed[];
-extern const char kMetricSuccessfulUpdateDurationFromSeenDays[];
-extern const char kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays[];
 extern const char kMetricSuccessfulUpdatePayloadType[];
 extern const char kMetricSuccessfulUpdatePayloadSizeMiB[];
 extern const char kMetricSuccessfulUpdateRebootCount[];
@@ -172,9 +170,6 @@ class MetricsReporterOmaha : public MetricsReporterInterface {
   void ReportInstallDateProvisioningSource(int source, int max) override;
 
   void ReportInternalErrorCode(ErrorCode error_code) override;
-
-  void ReportEnterpriseUpdateSeenToDownloadDays(
-      bool has_time_restriction_policy, int time_to_update_days) override;
 
   void ReportConsecutiveUpdateCount(int count) override;
 

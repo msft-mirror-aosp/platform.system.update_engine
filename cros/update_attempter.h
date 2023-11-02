@@ -543,11 +543,6 @@ class UpdateAttempter : public ActionProcessorDelegate,
 
   void CalculateStagingParams(bool interactive);
 
-  // Reports a metric that tracks the time from when the update was first seen
-  // to the time when the update was finally downloaded and applied. This metric
-  // will only be reported for enterprise enrolled devices.
-  void ReportTimeToUpdateAppliedMetric();
-
   // Resets interactivity and forced update flags.
   void ResetInteractivityFlags();
 

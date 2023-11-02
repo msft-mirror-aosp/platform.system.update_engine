@@ -88,10 +88,6 @@ const char kMetricSuccessfulUpdateDownloadOverheadPercentage[] =
     "UpdateEngine.SuccessfulUpdate.DownloadOverheadPercentage";
 const char kMetricSuccessfulUpdateDownloadSourcesUsed[] =
     "UpdateEngine.SuccessfulUpdate.DownloadSourcesUsed";
-const char kMetricSuccessfulUpdateDurationFromSeenDays[] =
-    "UpdateEngine.SuccessfulUpdate.DurationFromSeenDays.NoTimeRestriction";
-const char kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays[] =
-    "UpdateEngine.SuccessfulUpdate.DurationFromSeenDays.TimeRestricted";
 const char kMetricSuccessfulUpdatePayloadType[] =
     "UpdateEngine.SuccessfulUpdate.PayloadType";
 const char kMetricSuccessfulUpdatePayloadSizeMiB[] =
@@ -528,20 +524,6 @@ void MetricsReporterOmaha::ReportInternalErrorCode(ErrorCode error_code) {
   metrics_lib_->SendEnumToUMA(metric,
                               static_cast<int>(error_code),
                               static_cast<int>(ErrorCode::kUmaReportedMax));
-}
-
-void MetricsReporterOmaha::ReportEnterpriseUpdateSeenToDownloadDays(
-    bool has_time_restriction_policy, int time_to_update_days) {
-  string metric =
-      has_time_restriction_policy
-          ? metrics::kMetricSuccessfulUpdateDurationFromSeenTimeRestrictedDays
-          : metrics::kMetricSuccessfulUpdateDurationFromSeenDays;
-
-  metrics_lib_->SendToUMA(metric,
-                          time_to_update_days,
-                          1,       // min: 1 days
-                          6 * 30,  // max: 6 months (approx)
-                          50);     // num_buckets
 }
 
 void MetricsReporterOmaha::ReportConsecutiveUpdateCount(int count) {

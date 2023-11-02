@@ -1382,7 +1382,6 @@ void UpdateAttempter::ProcessingDoneInternal(const ActionProcessor* processor,
     return;
   }
 
-  ReportTimeToUpdateAppliedMetric();
   prefs_->SetInt64(kPrefsDeltaUpdateFailures, 0);
   prefs_->SetString(kPrefsPreviousVersion,
                     omaha_request_params_->app_version());
@@ -2375,30 +2374,6 @@ bool UpdateAttempter::IsRepeatedUpdatesEnabled() {
   }
 
   return allow_repeated_updates;
-}
-
-void UpdateAttempter::ReportTimeToUpdateAppliedMetric() {
-  const policy::DevicePolicy* device_policy =
-      SystemState::Get()->device_policy();
-  if (device_policy && device_policy->IsEnterpriseEnrolled()) {
-    vector<policy::DevicePolicy::WeeklyTimeInterval> parsed_intervals;
-    bool has_time_restrictions =
-        device_policy->GetDisallowedTimeIntervals(&parsed_intervals);
-
-    int64_t update_first_seen_at_int;
-    if (SystemState::Get()->prefs()->Exists(kPrefsUpdateFirstSeenAt)) {
-      if (SystemState::Get()->prefs()->GetInt64(kPrefsUpdateFirstSeenAt,
-                                                &update_first_seen_at_int)) {
-        TimeDelta update_delay =
-            SystemState::Get()->clock()->GetWallclockTime() -
-            Time::FromInternalValue(update_first_seen_at_int);
-        SystemState::Get()
-            ->metrics_reporter()
-            ->ReportEnterpriseUpdateSeenToDownloadDays(has_time_restrictions,
-                                                       update_delay.InDays());
-      }
-    }
-  }
 }
 
 bool UpdateAttempter::ToggleFeature(const std::string& feature, bool enable) {
