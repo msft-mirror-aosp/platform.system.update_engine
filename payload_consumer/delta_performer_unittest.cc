@@ -17,7 +17,6 @@
 #include "update_engine/payload_consumer/delta_performer.h"
 
 #include <endian.h>
-#include <inttypes.h>
 #include <time.h>
 
 #include <algorithm>
@@ -43,7 +42,6 @@
 #include "update_engine/common/fake_boot_control.h"
 #include "update_engine/common/fake_hardware.h"
 #include "update_engine/common/fake_prefs.h"
-#include "update_engine/common/hardware_interface.h"
 #include "update_engine/common/hash_calculator.h"
 #include "update_engine/common/mock_download_action.h"
 #include "update_engine/common/test_utils.h"
@@ -230,13 +228,14 @@ class DeltaPerformerTest : public ::testing::Test {
     new_part.path = "/dev/zero";
     new_part.size = 1234;
 
-    payload.AddPartition(*old_part, new_part, aops, {}, 0);
+    payload.AddPartition(*old_part, new_part, aops, {}, {});
 
     // We include a kernel partition without operations.
     old_part->name = kPartitionNameKernel;
     new_part.name = kPartitionNameKernel;
     new_part.size = 0;
-    payload.AddPartition(*old_part, new_part, {}, {}, 0);
+
+    payload.AddPartition(*old_part, new_part, {}, {}, {});
 
     ScopedTempFile payload_file("Payload-XXXXXX");
     string private_key =

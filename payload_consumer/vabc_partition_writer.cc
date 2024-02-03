@@ -16,8 +16,6 @@
 
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 
-#include <algorithm>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -346,7 +344,7 @@ bool VABCPartitionWriter::PerformReplaceOperation(const InstallOperation& op,
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer = CreateBaseExtentWriter();
 
-  return executor_.ExecuteReplaceOperation(op, std::move(writer), data, count);
+  return executor_.ExecuteReplaceOperation(op, std::move(writer), data);
 }
 
 bool VABCPartitionWriter::PerformDiffOperation(
@@ -401,7 +399,9 @@ int VABCPartitionWriter::Close() {
   if (cow_writer_) {
     LOG(INFO) << "Finalizing " << partition_update_.partition_name()
               << " COW image";
-    cow_writer_->Finalize();
+    if (!cow_writer_->Finalize()) {
+      return -errno;
+    }
     cow_writer_ = nullptr;
   }
   return 0;
