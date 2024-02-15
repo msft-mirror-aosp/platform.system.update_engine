@@ -24,8 +24,8 @@
 
 #include <android-base/unique_fd.h>
 #include <libsnapshot/cow_writer.h>
+#include <libsnapshot/cow_format.h>
 
-#include "update_engine/common/cow_operation_convert.h"
 #include "update_engine/common/utils.h"
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 #include "update_engine/payload_generator/extent_ranges.h"
@@ -33,7 +33,8 @@
 #include "update_engine/update_metadata.pb.h"
 
 namespace chromeos_update_engine {
-using android::snapshot::CowWriter;
+using android::snapshot::CreateCowEstimator;
+using android::snapshot::ICowWriter;
 
 bool CowDryRun(
     FileDescriptorPtr source_fd,
@@ -42,7 +43,7 @@ bool CowDryRun(
     const google::protobuf::RepeatedPtrField<CowMergeOperation>&
         merge_operations,
     const size_t block_size,
-    android::snapshot::CowWriter* cow_writer,
+    android::snapshot::ICowWriter* cow_writer,
     const size_t partition_size,
     const bool xor_enabled) {
   CHECK_NE(target_fd, nullptr);
@@ -135,7 +136,7 @@ bool CowDryRun(
   return cow_writer->Finalize();
 }
 
-size_t EstimateCowSize(
+android::snapshot::CowSizeInfo EstimateCowSizeInfo(
     FileDescriptorPtr source_fd,
     FileDescriptorPtr target_fd,
     const google::protobuf::RepeatedPtrField<InstallOperation>& operations,
@@ -144,22 +145,28 @@ size_t EstimateCowSize(
     const size_t block_size,
     std::string compression,
     const size_t partition_size,
-    const bool xor_enabled) {
-  android::snapshot::CowWriter cow_writer{
-      {.block_size = static_cast<uint32_t>(block_size),
-       .compression = std::move(compression)}};
-  // CowWriter treats -1 as special value, will discard all the data but still
-  // reports Cow size. Good for estimation purposes
-  cow_writer.Initialize(android::base::borrowed_fd{-1});
+    const bool xor_enabled,
+    uint32_t cow_version,
+    uint64_t compression_factor) {
+  android::snapshot::CowOptions options{
+      .block_size = static_cast<uint32_t>(block_size),
+      .compression = std::move(compression),
+      .max_blocks = (partition_size / block_size),
+      .compression_factor = compression_factor};
+  // b/322279333 use 4096 as estimation until we have an updated estimation
+  // algorithm
+  options.compression_factor = block_size;
+  auto cow_writer = CreateCowEstimator(cow_version, options);
+  CHECK_NE(cow_writer, nullptr) << "Could not create cow estimator";
   CHECK(CowDryRun(source_fd,
                   target_fd,
                   operations,
                   merge_operations,
                   block_size,
-                  &cow_writer,
+                  cow_writer.get(),
                   partition_size,
                   xor_enabled));
-  return cow_writer.GetCowSize();
+  return cow_writer->GetCowSizeInfo();
 }
 
 }  // namespace chromeos_update_engine

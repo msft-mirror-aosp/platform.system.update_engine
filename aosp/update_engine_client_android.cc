@@ -17,6 +17,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -117,8 +118,7 @@ void UpdateEngineClientAndroid::RegisterDeathNotification() {
   android::BinderWrapper::Create();
   android::BinderWrapper::Get()->RegisterForDeathNotifications(
       android::os::IUpdateEngine::asBinder(service_),
-      base::Bind(&UpdateEngineClientAndroid::UpdateEngineServiceDied,
-                 base::Unretained(this)));
+      [this]() { UpdateEngineServiceDied(); });
 }
 
 int UpdateEngineClientAndroid::OnInit() {
@@ -207,7 +207,7 @@ int UpdateEngineClientAndroid::OnInit() {
   if (FLAGS_follow) {
     // Register a callback object with the service.
     callback_ = new UECallback(this);
-    bool bound;
+    bool bound = false;
     if (!service_->bind(callback_, &bound).isOk() || !bound) {
       LOG(ERROR) << "Failed to bind() the UpdateEngine daemon.";
       return 1;
@@ -345,7 +345,15 @@ std::vector<android::String16> UpdateEngineClientAndroid::ParseHeaders(
 }  // namespace chromeos_update_engine
 
 int main(int argc, char** argv) {
+  const auto start = std::chrono::system_clock::now();
   chromeos_update_engine::internal::UpdateEngineClientAndroid client(argc,
                                                                      argv);
-  return client.Run();
+  const auto ret = client.Run();
+  const auto end = std::chrono::system_clock::now();
+  const auto duration = end - start;
+  LOG(INFO)
+      << "Command took "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()
+      << " ms";
+  return ret;
 }
