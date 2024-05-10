@@ -38,7 +38,8 @@ FeatureFlag DynamicPartitionControlStub::GetVirtualAbCompressionFeatureFlag() {
   return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
-FeatureFlag DynamicPartitionControlStub::GetVirtualAbCompressionXorFeatureFlag() {
+FeatureFlag
+DynamicPartitionControlStub::GetVirtualAbCompressionXorFeatureFlag() {
   return FeatureFlag(FeatureFlag::Value::NONE);
 }
 
@@ -61,7 +62,8 @@ bool DynamicPartitionControlStub::PreparePartitionsForUpdate(
     uint32_t target_slot,
     const DeltaArchiveManifest& manifest,
     bool update,
-    uint64_t* required_size) {
+    uint64_t* required_size,
+    ErrorCode* error) {
   return true;
 }
 
@@ -99,11 +101,11 @@ bool DynamicPartitionControlStub::VerifyExtentsForUntouchedPartitions(
   return true;
 }
 
-std::unique_ptr<android::snapshot::ISnapshotWriter>
+std::unique_ptr<android::snapshot::ICowWriter>
 DynamicPartitionControlStub::OpenCowWriter(
     const std::string& /*unsuffixed_partition_name*/,
     const std::optional<std::string>& /*source_path*/,
-    bool /*is_append*/) {
+    std::optional<uint64_t>) {
   return nullptr;
 }
 

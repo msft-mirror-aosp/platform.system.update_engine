@@ -88,7 +88,7 @@ class PayloadPropertiesTest : public ::testing::Test {
     EXPECT_TRUE(strategy->GenerateOperations(
         config, old_part, new_part, &blob_file_writer, &aops));
 
-    payload.AddPartition(old_part, new_part, aops, {}, 0);
+    payload.AddPartition(old_part, new_part, aops, {}, {});
 
     uint64_t metadata_size;
     EXPECT_TRUE(payload.WritePayload(
@@ -105,8 +105,10 @@ TEST_F(PayloadPropertiesTest, GetPropertiesAsJsonTestHash) {
       R"("is_delta":true,)"
       R"("metadata_signature":"",)"
       R"("metadata_size":165,)"
+      R"("metadata_size_str":"165",)"
       R"("sha256_hex":"cV7kfZBH3K0B6QJHxxykDh6b6x0WgVOmc63whPLOy7U=",)"
       R"("size":211,)"
+      R"("size_str":"211",)"
       R"("version":2)"
       "}";
   string json;

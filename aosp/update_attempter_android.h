@@ -77,28 +77,28 @@ class UpdateAttempterAndroid
                     int64_t payload_offset,
                     int64_t payload_size,
                     const std::vector<std::string>& key_value_pair_headers,
-                    brillo::ErrorPtr* error) override;
+                    Error* error) override;
   bool ApplyPayload(int fd,
                     int64_t payload_offset,
                     int64_t payload_size,
                     const std::vector<std::string>& key_value_pair_headers,
-                    brillo::ErrorPtr* error) override;
-  bool SuspendUpdate(brillo::ErrorPtr* error) override;
-  bool ResumeUpdate(brillo::ErrorPtr* error) override;
-  bool CancelUpdate(brillo::ErrorPtr* error) override;
-  bool ResetStatus(brillo::ErrorPtr* error) override;
+                    Error* error) override;
+  bool SuspendUpdate(Error* error) override;
+  bool ResumeUpdate(Error* error) override;
+  bool CancelUpdate(Error* error) override;
+  bool ResetStatus(Error* error) override;
   bool VerifyPayloadApplicable(const std::string& metadata_filename,
-                               brillo::ErrorPtr* error) override;
+                               Error* error) override;
   uint64_t AllocateSpaceForPayload(
       const std::string& metadata_filename,
       const std::vector<std::string>& key_value_pair_headers,
-      brillo::ErrorPtr* error) override;
+      Error* error) override;
   void CleanupSuccessfulUpdate(
       std::unique_ptr<CleanupSuccessfulUpdateCallbackInterface> callback,
-      brillo::ErrorPtr* error) override;
+      Error* error) override;
   bool setShouldSwitchSlotOnReboot(const std::string& metadata_filename,
-                                   brillo::ErrorPtr* error) override;
-  bool resetShouldSwitchSlotOnReboot(brillo::ErrorPtr* error) override;
+                                   Error* error) override;
+  bool resetShouldSwitchSlotOnReboot(Error* error) override;
 
   // ActionProcessorDelegate methods:
   void ProcessingDone(const ActionProcessor* processor,
@@ -168,8 +168,8 @@ class UpdateAttempterAndroid
   // |update_completed_marker_| is empty.
   [[nodiscard]] bool WriteUpdateCompletedMarker();
 
-  // Returns whether an update was completed in the current boot.
-  [[nodiscard]] bool UpdateCompletedOnThisBoot();
+  // Returns whether a slot switch was attempted in the current boot.
+  [[nodiscard]] bool UpdateCompletedOnThisBoot() const;
 
   // Prefs to use for metrics report
   // |kPrefsPayloadAttemptNumber|: number of update attempts for the current
@@ -221,8 +221,14 @@ class UpdateAttempterAndroid
   // Helper of public VerifyPayloadApplicable. Return the parsed manifest in
   // |manifest|.
   static bool VerifyPayloadParseManifest(const std::string& metadata_filename,
+                                         std::string_view metadata_hash,
                                          DeltaArchiveManifest* manifest,
-                                         brillo::ErrorPtr* error);
+                                         Error* error);
+  static bool VerifyPayloadParseManifest(const std::string& metadata_filename,
+                                         DeltaArchiveManifest* manifest,
+                                         Error* error) {
+    return VerifyPayloadParseManifest(metadata_filename, "", manifest, error);
+  }
 
   // Enqueue and run a CleanupPreviousUpdateAction.
   void ScheduleCleanupPreviousUpdate();
@@ -233,6 +239,8 @@ class UpdateAttempterAndroid
   // Remove |callback| from |cleanup_previous_update_callbacks_|.
   void RemoveCleanupPreviousUpdateCallback(
       CleanupSuccessfulUpdateCallbackInterface* callback);
+
+  bool IsProductionBuild();
 
   DaemonStateInterface* daemon_state_;
 

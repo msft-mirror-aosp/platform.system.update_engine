@@ -15,7 +15,8 @@
 //
 #include "update_engine/aosp/cleanup_previous_update_action.h"
 
-#include <chrono>  // NOLINT(build/c++11) -- for merge times
+#include <algorithm>
+#include <chrono>
 #include <functional>
 #include <string>
 #include <type_traits>
@@ -23,8 +24,9 @@
 #include <android-base/chrono_utils.h>
 #include <android-base/properties.h>
 #include <base/bind.h>
+#include <libsnapshot/snapshot.h>
 
-#ifndef __ANDROID_RECOVERY__
+#if !defined(__ANDROID_RECOVERY__) && !defined(UE_DISABLE_STATS)
 #include <statslog_ue.h>
 #endif
 
@@ -38,6 +40,8 @@ using android::snapshot::UpdateState;
 using brillo::MessageLoop;
 
 constexpr char kBootCompletedProp[] = "sys.boot_completed";
+constexpr auto&& kMergeDelaySecondsProp = "ro.virtual_ab.merge_delay_seconds";
+constexpr size_t kMaxMergeDelaySeconds = 600;
 // Interval to check sys.boot_completed.
 constexpr auto kCheckBootCompletedInterval = base::TimeDelta::FromSeconds(2);
 // Interval to check IBootControl::isSlotMarkedSuccessful
@@ -108,16 +112,15 @@ std::string CleanupPreviousUpdateAction::StaticType() {
 // future. This avoids StopActionInternal() from resetting task IDs in an
 // unexpected way because task IDs could be reused.
 void CleanupPreviousUpdateAction::AcknowledgeTaskExecuted() {
-  if (scheduled_task_ != MessageLoop::kTaskIdNull) {
+  if (scheduled_task_.IsScheduled()) {
     LOG(INFO) << "Executing task " << scheduled_task_;
   }
-  scheduled_task_ = MessageLoop::kTaskIdNull;
 }
 
 // Check that scheduled_task_ is a valid task ID. Otherwise, terminate the
 // action.
 void CleanupPreviousUpdateAction::CheckTaskScheduled(std::string_view name) {
-  if (scheduled_task_ == MessageLoop::kTaskIdNull) {
+  if (!scheduled_task_.IsScheduled()) {
     LOG(ERROR) << "Unable to schedule " << name;
     processor_->ActionComplete(this, ErrorCode::kError);
   } else {
@@ -130,8 +133,8 @@ void CleanupPreviousUpdateAction::StopActionInternal() {
   LOG(INFO) << "Stopping/suspending/completing CleanupPreviousUpdateAction";
   running_ = false;
 
-  if (scheduled_task_ != MessageLoop::kTaskIdNull) {
-    if (MessageLoop::current()->CancelTask(scheduled_task_)) {
+  if (scheduled_task_.IsScheduled()) {
+    if (scheduled_task_.Cancel()) {
       LOG(INFO) << "CleanupPreviousUpdateAction cancelled pending task ID "
                 << scheduled_task_;
     } else {
@@ -139,7 +142,6 @@ void CleanupPreviousUpdateAction::StopActionInternal() {
                  << scheduled_task_;
     }
   }
-  scheduled_task_ = MessageLoop::kTaskIdNull;
 }
 
 void CleanupPreviousUpdateAction::StartActionInternal() {
@@ -164,12 +166,13 @@ void CleanupPreviousUpdateAction::StartActionInternal() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitBootCompleted() {
   TEST_AND_RETURN(running_);
-  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule,
-                 base::Unretained(this)),
-      kCheckBootCompletedInterval);
-  CheckTaskScheduled("WaitBootCompleted");
+  if (!scheduled_task_.PostTask(
+          FROM_HERE,
+          base::Bind(&CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule,
+                     base::Unretained(this)),
+          kCheckBootCompletedInterval)) {
+    CheckTaskScheduled("WaitBootCompleted");
+  }
 }
 
 void CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule() {
@@ -192,13 +195,37 @@ void CleanupPreviousUpdateAction::WaitBootCompletedOrSchedule() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitMarkBootSuccessful() {
   TEST_AND_RETURN(running_);
-  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(
-          &CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule,
-          base::Unretained(this)),
-      kCheckSlotMarkedSuccessfulInterval);
-  CheckTaskScheduled("WaitMarkBootSuccessful");
+  if (!scheduled_task_.PostTask(
+          FROM_HERE,
+          base::Bind(
+              &CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule,
+              base::Unretained(this)),
+          kCheckSlotMarkedSuccessfulInterval)) {
+    CheckTaskScheduled("WaitMarkBootSuccessful");
+  }
+}
+
+void CleanupPreviousUpdateAction::CheckForMergeDelay() {
+  if (!android::snapshot::SnapshotManager::IsSnapshotManagerNeeded()) {
+    StartMerge();
+    return;
+  }
+  const auto merge_delay_seconds =
+      std::clamp<int>(android::base::GetIntProperty(kMergeDelaySecondsProp, 0),
+                      0,
+                      kMaxMergeDelaySeconds);
+  if (merge_delay_seconds != 0) {
+    LOG(INFO) << "Merge is ready to start, but " << kMergeDelaySecondsProp
+              << " is set, delaying merge by " << merge_delay_seconds
+              << " seconds";
+  }
+  if (!scheduled_task_.PostTask(
+          FROM_HERE,
+          [this]() { StartMerge(); },
+          base::TimeDelta::FromSeconds(merge_delay_seconds))) {
+    LOG(ERROR) << "Unable to schedule " << __FUNCTION__;
+    processor_->ActionComplete(this, ErrorCode::kError);
+  }
 }
 
 void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
@@ -209,7 +236,10 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
     ScheduleWaitMarkBootSuccessful();
     return;
   }
+  CheckForMergeDelay();
+}
 
+void CleanupPreviousUpdateAction::StartMerge() {
   if (metadata_device_ == nullptr) {
     metadata_device_ = snapshot_->EnsureMetadataMounted();
   }
@@ -265,12 +295,13 @@ void CleanupPreviousUpdateAction::CheckSlotMarkedSuccessfulOrSchedule() {
 
 void CleanupPreviousUpdateAction::ScheduleWaitForMerge() {
   TEST_AND_RETURN(running_);
-  scheduled_task_ = MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&CleanupPreviousUpdateAction::WaitForMergeOrSchedule,
-                 base::Unretained(this)),
-      kWaitForMergeInterval);
-  CheckTaskScheduled("WaitForMerge");
+  if (!scheduled_task_.PostTask(
+          FROM_HERE,
+          base::Bind(&CleanupPreviousUpdateAction::WaitForMergeOrSchedule,
+                     base::Unretained(this)),
+          kWaitForMergeInterval)) {
+    CheckTaskScheduled("WaitForMerge");
+  }
 }
 
 void CleanupPreviousUpdateAction::WaitForMergeOrSchedule() {
@@ -379,7 +410,10 @@ bool CleanupPreviousUpdateAction::OnMergePercentageUpdate() {
 }
 
 bool CleanupPreviousUpdateAction::BeforeCancel() {
-  if (DeltaPerformer::ResetUpdateProgress(prefs_, false /* quick */)) {
+  if (DeltaPerformer::ResetUpdateProgress(
+          prefs_,
+          false /* quick */,
+          false /* skip dynamic partitions metadata*/)) {
     return true;
   }
 
@@ -468,6 +502,8 @@ void CleanupPreviousUpdateAction::ReportMergeStats() {
 
 #ifdef __ANDROID_RECOVERY__
   LOG(INFO) << "Skip reporting merge stats in recovery.";
+#elif defined(UE_DISABLE_STATS)
+  LOG(INFO) << "Skip reporting merge stats because metrics are disabled.";
 #else
   const auto& report = result->report();
 

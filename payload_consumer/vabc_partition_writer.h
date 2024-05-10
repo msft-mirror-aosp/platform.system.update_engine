@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include <libsnapshot/snapshot_writer.h>
+#include <libsnapshot/cow_writer.h>
 
 #include "update_engine/payload_consumer/extent_map.h"
 #include "update_engine/payload_consumer/install_operation_executor.h"
@@ -34,6 +34,14 @@
 namespace chromeos_update_engine {
 class VABCPartitionWriter final : public PartitionWriterInterface {
  public:
+  static bool ProcessSourceCopyOperation(
+      const InstallOperation& operation,
+      const size_t block_size,
+      const ExtentRanges& copy_blocks,
+      const FileDescriptorPtr& source_fd,
+      android::snapshot::ICowWriter* cow_writer,
+      bool sequence_op_supported);
+
   VABCPartitionWriter(const PartitionUpdate& partition_update,
                       const InstallPlan::Partition& install_part,
                       DynamicPartitionControlInterface* dynamic_control,
@@ -70,8 +78,10 @@ class VABCPartitionWriter final : public PartitionWriterInterface {
       android::snapshot::ICowWriter* cow_writer);
 
  private:
+  [[nodiscard]] bool DoesDeviceSupportsXor();
   bool IsXorEnabled() const noexcept { return xor_map_.size() > 0; }
-  std::unique_ptr<android::snapshot::ISnapshotWriter> cow_writer_;
+  [[nodiscard]] bool WriteAllCopyOps();
+  std::unique_ptr<android::snapshot::ICowWriter> cow_writer_;
 
   [[nodiscard]] std::unique_ptr<ExtentWriter> CreateBaseExtentWriter();
 

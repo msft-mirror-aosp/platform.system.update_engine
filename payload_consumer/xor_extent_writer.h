@@ -19,12 +19,9 @@
 
 #include <vector>
 
+#include "common/utils.h"
 #include "update_engine/payload_consumer/block_extent_writer.h"
 #include "update_engine/payload_consumer/extent_map.h"
-#include "update_engine/payload_consumer/extent_reader.h"
-#include "update_engine/payload_consumer/extent_writer.h"
-#include "update_engine/payload_generator/extent_ranges.h"
-#include "update_engine/payload_generator/extent_utils.h"
 
 #include <update_engine/update_metadata.pb.h>
 #include <libsnapshot/cow_writer.h>
@@ -38,11 +35,13 @@ class XORExtentWriter : public BlockExtentWriter {
   XORExtentWriter(const InstallOperation& op,
                   FileDescriptorPtr source_fd,
                   android::snapshot::ICowWriter* cow_writer,
-                  const ExtentMap<const CowMergeOperation*>& xor_map)
+                  const ExtentMap<const CowMergeOperation*>& xor_map,
+                  size_t partition_size)
       : src_extents_(op.src_extents()),
         source_fd_(source_fd),
         xor_map_(xor_map),
-        cow_writer_(cow_writer) {
+        cow_writer_(cow_writer),
+        partition_size_(partition_size) {
     CHECK(source_fd->IsOpen());
   }
   ~XORExtentWriter() = default;
@@ -57,10 +56,20 @@ class XORExtentWriter : public BlockExtentWriter {
                            const Extent& extent,
                            const void* bytes,
                            size_t size);
+  bool WriteXorExtent(const uint8_t* bytes,
+                      const size_t size,
+                      const Extent& xor_ext,
+                      const CowMergeOperation* merge_op);
+  bool WriteXorCowOp(const uint8_t* bytes,
+                     const size_t size,
+                     const Extent& xor_ext,
+                     size_t src_offset);
   const google::protobuf::RepeatedPtrField<Extent>& src_extents_;
   const FileDescriptorPtr source_fd_;
   const ExtentMap<const CowMergeOperation*>& xor_map_;
   android::snapshot::ICowWriter* cow_writer_;
+  std::vector<uint8_t> xor_block_data;
+  const size_t partition_size_;
 };
 
 }  // namespace chromeos_update_engine

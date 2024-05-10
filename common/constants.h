@@ -168,6 +168,7 @@ static constexpr const auto& kPayloadPropertyUserAgent = "USER_AGENT";
 // Set "POWERWASH=1" to powerwash (factory data reset) the device after
 // applying the update.
 static constexpr const auto& kPayloadPropertyPowerwash = "POWERWASH";
+static constexpr const auto& kPayloadPropertySplDowngrade = "SPL_DOWNGRADE";
 // The network id to pass to android_setprocnetwork before downloading.
 // This can be used to zero-rate OTA traffic by sending it over the correct
 // network.
@@ -178,6 +179,8 @@ static constexpr const auto& kPayloadPropertyNetworkProxy = "NETWORK_PROXY";
 
 // Set Virtual AB Compression's compression algorithm to "none", but still use
 // userspace snapshots and snapuserd for update installation.
+static constexpr const auto& kPayloadVABCNone = "VABC_NONE";
+// Enable/Disable VABC, falls back on plain VAB
 static constexpr const auto& kPayloadDisableVABC = "DISABLE_VABC";
 // Enable multi-threaded compression for VABC
 static constexpr const auto& kPayloadEnableThreading = "ENABLE_THREADING";

@@ -40,6 +40,12 @@ namespace chromeos_update_engine {
 namespace deflate_utils {
 namespace {
 
+constexpr std::ostream& operator<<(std::ostream& out,
+                                   const puffin::BitExtent& ext) {
+  out << "BitExtent(" << ext.offset << "," << ext.length << ")";
+  return out;
+}
+
 // The minimum size for a squashfs image to be processed.
 const uint64_t kMinimumSquashfsImageSize = 1 * 1024 * 1024;  // bytes
 
@@ -255,7 +261,8 @@ bool CompactDeflates(const vector<Extent>& extents,
 
   // All given |in_deflates| items should've been inside one of the extents in
   // |extents|.
-  TEST_AND_RETURN_FALSE(in_deflates.size() == out_deflates->size());
+  TEST_EQ(in_deflates.size(), out_deflates->size());
+  Dedup(out_deflates);
 
   // Make sure all outgoing deflates are ordered and non-overlapping.
   auto result = std::adjacent_find(out_deflates->begin(),
@@ -263,7 +270,11 @@ bool CompactDeflates(const vector<Extent>& extents,
                                    [](const BitExtent& a, const BitExtent& b) {
                                      return (a.offset + a.length) > b.offset;
                                    });
-  TEST_AND_RETURN_FALSE(result == out_deflates->end());
+  if (result != out_deflates->end()) {
+    LOG(ERROR) << "out_deflate is overlapped " << (*result) << ", "
+               << *(++result);
+    return false;
+  }
   return true;
 }
 
@@ -316,9 +327,8 @@ bool PreprocessPartitionFiles(const PartitionConfig& part,
       TEST_AND_RETURN_FALSE(
           CopyExtentsToFile(part.path, file.extents, path.value(), kBlockSize));
       // Test if it is actually a Squashfs file.
-      auto sqfs = SquashfsFilesystem::CreateFromFile(path.value(),
-                                                     extract_deflates,
-                                                     /*load_settings=*/false);
+      auto sqfs =
+          SquashfsFilesystem::CreateFromFile(path.value(), extract_deflates);
       if (sqfs) {
         // It is an squashfs file. Get its files to replace with itself.
         vector<FilesystemInterface::File> files;

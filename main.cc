@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <xz.h>
@@ -21,7 +22,7 @@
 #include <base/at_exit.h>
 #include <base/command_line.h>
 #include <base/logging.h>
-#include <brillo/flag_helper.h>
+#include <gflags/gflags.h>
 
 #include "update_engine/common/daemon_base.h"
 #include "update_engine/common/logging.h"
@@ -30,16 +31,16 @@
 #include "update_engine/common/utils.h"
 
 using std::string;
+DEFINE_bool(logtofile, false, "Write logs to a file in log_dir.");
+DEFINE_bool(logtostderr,
+            false,
+            "Write logs to stderr instead of to a file in log_dir.");
+DEFINE_bool(foreground, false, "Don't daemon()ize; run in foreground.");
 
 int main(int argc, char** argv) {
-  DEFINE_bool(logtofile, false, "Write logs to a file in log_dir.");
-  DEFINE_bool(logtostderr,
-              false,
-              "Write logs to stderr instead of to a file in log_dir.");
-  DEFINE_bool(foreground, false, "Don't daemon()ize; run in foreground.");
-
   chromeos_update_engine::Terminator::Init();
-  brillo::FlagHelper::Init(argc, argv, "A/B Update Engine");
+  gflags::SetUsageMessage("A/B Update Engine");
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // We have two logging flags "--logtostderr" and "--logtofile"; and the logic
   // to choose the logging destination is:
@@ -49,6 +50,14 @@ int main(int argc, char** argv) {
   bool log_to_system = FLAGS_logtostderr;
   bool log_to_file = FLAGS_logtofile || !FLAGS_logtostderr;
   chromeos_update_engine::SetupLogging(log_to_system, log_to_file);
+  base::FilePath tmpdir;
+  if (chromeos_update_engine::GetTempName("", &tmpdir)) {
+    LOG(INFO) << "Using temp dir " << tmpdir;
+    setenv("TMPDIR", tmpdir.value().c_str(), true);
+  } else {
+    PLOG(ERROR) << "Failed to create temporary directory, puffdiff will run "
+                   "w/o on disk cache, updates might take longer.";
+  }
   if (!FLAGS_foreground)
     PLOG_IF(FATAL, daemon(0, 0) == 1) << "daemon() failed";
 

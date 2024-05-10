@@ -57,7 +57,9 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/subprocess.h"
+#ifdef __ANDROID__
 #include "update_engine/common/platform_constants.h"
+#endif
 #include "update_engine/payload_consumer/file_descriptor.h"
 
 using base::Time;
@@ -84,6 +86,7 @@ const int kGetFileFormatMaxHeaderSize = 32;
 // The path to the kernel's boot_id.
 const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 
+}  // namespace
 // If |path| is absolute, or explicit relative to the current working directory,
 // leaves it as is. Otherwise, uses the system's temp directory, as defined by
 // base::GetTempDir() and prepends it to |path|. On success stores the full
@@ -107,8 +110,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   *template_path = temp_dir.Append(path);
   return true;
 }
-
-}  // namespace
 
 namespace utils {
 
@@ -410,6 +411,20 @@ bool SendFile(int out_fd, int in_fd, size_t count) {
   return true;
 }
 
+bool DeleteDirectory(const char* dirname) {
+  if (!std::filesystem::exists(dirname)) {
+    return true;
+  }
+  const std::string tmpdir = std::string(dirname) + "_deleted";
+  std::filesystem::remove_all(tmpdir);
+  if (rename(dirname, tmpdir.c_str()) != 0) {
+    PLOG(ERROR) << "Failed to rename " << dirname << " to " << tmpdir;
+    return false;
+  }
+  std::filesystem::remove_all(tmpdir);
+  return true;
+}
+
 bool FsyncDirectory(const char* dirname) {
   android::base::unique_fd fd(
       TEMP_FAILURE_RETRY(open(dirname, O_RDONLY | O_CLOEXEC)));
@@ -597,6 +612,55 @@ bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
   if (rc != 0) {
     PLOG(ERROR) << "Marking block device " << device
                 << " as read_only=" << expected_flag;
+    return false;
+  }
+
+  /*
+   * Read back the value to check if it is configured successfully.
+   * If fail, use the second method, set the file
+   * /sys/block/<partition_name>/force_ro
+   * to config the read only property.
+   */
+  rc = ioctl(fd, BLKROGET, &read_only_flag);
+  if (rc != 0) {
+    PLOG(ERROR) << "Failed to read back block device read-only value:"
+                << device;
+    return false;
+  }
+  if (read_only_flag == expected_flag) {
+    return true;
+  }
+
+  std::array<char, PATH_MAX> device_name;
+  char* pdevice = realpath(device.c_str(), device_name.data());
+  TEST_AND_RETURN_FALSE_ERRNO(pdevice);
+
+  std::string real_path(pdevice);
+  std::size_t offset = real_path.find_last_of('/');
+  if (offset == std::string::npos) {
+    LOG(ERROR) << "Could not find partition name from " << real_path;
+    return false;
+  }
+  const std::string partition_name = real_path.substr(offset + 1);
+
+  std::string force_ro_file = "/sys/block/" + partition_name + "/force_ro";
+  android::base::unique_fd fd_force_ro{
+      HANDLE_EINTR(open(force_ro_file.c_str(), O_WRONLY | O_CLOEXEC))};
+  TEST_AND_RETURN_FALSE_ERRNO(fd_force_ro >= 0);
+
+  rc = write(fd_force_ro, expected_flag ? "1" : "0", 1);
+  TEST_AND_RETURN_FALSE_ERRNO(rc > 0);
+
+  // Read back again
+  rc = ioctl(fd, BLKROGET, &read_only_flag);
+  if (rc != 0) {
+    PLOG(ERROR) << "Failed to read back block device read-only value:"
+                << device;
+    return false;
+  }
+  if (read_only_flag != expected_flag) {
+    LOG(ERROR) << "After modifying force_ro, marking block device " << device
+               << " as read_only=" << expected_flag;
     return false;
   }
   return true;

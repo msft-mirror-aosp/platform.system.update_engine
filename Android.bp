@@ -75,12 +75,6 @@ cc_defaults {
     ],
     ldflags: ["-Wl,--gc-sections"],
 
-    product_variables: {
-        pdk: {
-            enabled: false,
-        },
-    },
-
     target: {
         android: {
             cflags: [
@@ -207,6 +201,7 @@ cc_defaults {
         "libcow_operation_convert",
         "lz4diff-protos",
         "liblz4patch",
+        "libzstd",
     ],
     shared_libs: [
         "libbase",
@@ -347,8 +342,7 @@ cc_defaults {
         "libcutils",
         "libfs_mgr_binder",
         "libgsi",
-        "libsnapshot",
-        "libsnapshot_cow",
+        "libsnapshot_static",
         "libstatslog_ue",
         "libz",
     ],
@@ -374,7 +368,7 @@ cc_defaults {
             ],
             exclude_static_libs: [
                 "libfs_mgr_binder",
-                "libsnapshot",
+                "libsnapshot_static",
                 "libstatslog_ue"
             ],
         },
@@ -428,6 +422,16 @@ cc_library_static {
 }
 
 cc_library_static {
+    name: "libupdate_engine_boot_control_nostats",
+    cflags: ["-DUE_DISABLE_STATS"],
+    defaults: [
+        "libupdate_engine_boot_control_defaults",
+        "libupdate_engine_boot_control_exports",
+        "libpayload_consumer_exports",
+    ],
+}
+
+cc_library_static {
     name: "libupdate_engine_boot_control_proto-full",
     defaults: [
         "libupdate_engine_boot_control_defaults",
@@ -463,7 +467,7 @@ cc_defaults {
         "libbrillo-binder",
         "libcurl",
         "libcutils",
-        "libupdate_engine_stable-V1-cpp",
+        "libupdate_engine_stable-V2-cpp",
         "liblog",
         "libssl",
         "libstatssocket",
@@ -505,10 +509,6 @@ cc_defaults {
     defaults: [
         "ue_defaults",
     ],
-
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
 
     aidl: {
         local_include_dirs: ["binder_bindings"],
@@ -561,14 +561,54 @@ cc_binary {
         "libupdate_engine_android_exports",
     ],
 
-    static_libs: ["libupdate_engine_android"],
+    static_libs: [
+        "libupdate_engine_android",
+        "libgflags",
+    ],
     required: [
-        "cacerts_google",
+        "cacerts",
         "otacerts",
     ],
 
     srcs: ["main.cc", "aosp/metrics_reporter_android.cc"],
     init_rc: ["update_engine.rc"],
+}
+
+// update_engine_nostats (type: executable)
+// ========================================================
+// update_engine daemon version without the stats integration.
+cc_binary {
+    name: "update_engine_nostats",
+    defaults: [
+        "ue_defaults",
+        "libupdate_engine_android_exports",
+    ],
+
+    static_libs: [
+        "libupdate_engine_android",
+        "libgflags",
+        "libupdate_engine_boot_control_nostats",
+    ],
+    required: [
+        "cacerts",
+        "otacerts",
+    ],
+
+    exclude_static_libs: [
+        "libstatslog_ue",
+        "libupdate_engine_boot_control"
+    ],
+
+    exclude_shared_libs: [
+        "libstatssocket",
+    ],
+
+    cflags: ["-DUE_DISABLE_STATS"],
+    srcs: [
+        "main.cc",
+        "common/metrics_reporter_stub.cc",
+    ],
+    init_rc: ["update_engine_nostats.rc"],
 }
 
 // update_engine_sideload (type: executable)
@@ -586,10 +626,10 @@ cc_binary {
     ],
     recovery: true,
 
-    cflags: ["-D_UE_SIDELOAD"],
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
+    cflags: [
+        "-D_UE_SIDELOAD",
+        "-DUE_DISABLE_STATS",
+    ],
     header_libs: ["libgtest_prod_headers"],
 
     srcs: [
@@ -614,6 +654,7 @@ cc_binary {
         "libbase",
         "liblog",
         "liblz4",
+        "libprotobuf-cpp-lite",
     ],
     static_libs: [
         "libpayload_consumer",
@@ -626,7 +667,6 @@ cc_binary {
         "libgkiprops",
         "libevent",
         "libmodpb64",
-        "libprotobuf-cpp-lite",
         "libbrillo-stream",
         "libbrillo",
         "libchrome",
@@ -634,7 +674,6 @@ cc_binary {
     target: {
         recovery: {
             exclude_shared_libs: [
-                "libprotobuf-cpp-lite",
                 "libbrillo-stream",
                 "libbrillo",
                 "libchrome",
@@ -653,10 +692,6 @@ cc_binary {
 cc_binary {
     name: "update_engine_client",
     defaults: ["ue_defaults"],
-
-    // TODO(deymo): Remove external/cros/system_api/dbus once the strings are moved
-    // out of the DBus interface.
-    include_dirs: ["external/cros/system_api/dbus"],
 
     shared_libs: [
         "libbinder",
@@ -710,6 +745,7 @@ cc_defaults {
         "libselinux",
         "lz4diff-protos",
         "liblz4diff",
+        "libzstd",
     ],
     shared_libs: [
         "libbase",
@@ -867,6 +903,7 @@ cc_binary_host {
         "libavb_host_sysdeps",
         "libpayload_consumer",
         "libpayload_generator",
+        "libgflags",
     ],
 
     srcs: ["payload_generator/generate_delta_main.cc"],
@@ -884,6 +921,7 @@ cc_test {
     static_libs: [
         "libpayload_consumer",
         "libpayload_generator",
+        "libgflags",
     ],
 
     srcs: ["payload_generator/generate_delta_main.cc"],
@@ -1052,6 +1090,8 @@ cc_test_host {
         "unittest_key_RSA4096.pem",
         "unittest_key_EC.pem",
         "update_engine.conf",
+        "testdata/cycle_nodes_product.bin",
+        "testdata/cycle_nodes_product_no_xor.bin",
     ],
     static_libs: [
         "libgmock",
@@ -1079,6 +1119,7 @@ cc_test {
         "libdm",
         "libgmock",
         "libz",
+        "libzstd",
     ],
     shared_libs: [
         "libssl",
@@ -1167,6 +1208,8 @@ cc_test {
         "unittest_key_RSA4096.pem",
         "unittest_key_EC.pem",
         "update_engine.conf",
+        "testdata/cycle_nodes_product.bin",
+        "testdata/cycle_nodes_product_no_xor.bin",
     ],
 
     // We cannot use the default generated AndroidTest.xml because of the use of helper modules
@@ -1190,6 +1233,7 @@ cc_test {
         "aosp/update_attempter_android_unittest.cc",
         "common/utils_unittest.cc",
         "download_action_android_unittest.cc",
+        "payload_consumer/block_extent_writer_unittest.cc",
         "payload_consumer/bzip_extent_writer_unittest.cc",
         "payload_consumer/cached_file_descriptor_unittest.cc",
         "payload_consumer/cow_writer_file_descriptor_unittest.cc",
@@ -1249,6 +1293,7 @@ cc_library_headers {
     host_supported: true,
     recovery_available: true,
     ramdisk_available: true,
+    vendor_ramdisk_available: true,
 
     target: {
         darwin: {
@@ -1319,4 +1364,53 @@ cc_binary_host {
         "libgflags",
         "update_metadata-protos",
     ],
+}
+
+cc_binary_host {
+    name: "map_file_generator",
+    defaults: [
+        "ue_defaults",
+        "libpayload_generator_exports",
+    ],
+    srcs: [
+        "aosp/map_file_generator.cc",
+    ],
+    static_libs: [
+        "liblog",
+        "libbase",
+        "libpayload_generator",
+        "libpayload_extent_ranges",
+        "libpayload_extent_utils",
+        "libgflags",
+        "libsparse",
+        "update_metadata-protos",
+    ],
+    required: [
+        "unsquashfs",
+    ],
+}
+
+cc_fuzz {
+    name: "update_engine_service_fuzzer",
+    defaults: [
+        "ue_defaults",
+        "libupdate_engine_android_exports",
+        "service_fuzzer_defaults",
+        "fuzzer_disable_leaks",
+    ],
+    static_libs: [
+        "libupdate_engine_android",
+        "libgflags",
+    ],
+    srcs: [
+        "fuzzers/update_engine_service_fuzzer.cpp",
+        "aosp/metrics_reporter_android.cc",
+    ],
+    fuzz_config: {
+        triage_assignee: "waghpawan@google.com",
+        cc: [
+            "elsk@google.com",
+            "zhangkelvin@google.com",
+        ]
+    },
 }

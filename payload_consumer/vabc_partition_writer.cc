@@ -16,8 +16,6 @@
 
 #include "update_engine/payload_consumer/vabc_partition_writer.h"
 
-#include <algorithm>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -95,6 +93,114 @@ VABCPartitionWriter::VABCPartitionWriter(
     }
     copy_blocks_.AddExtent(cow_op.dst_extent());
   }
+  LOG(INFO) << "Partition `" << partition_update.partition_name() << "` has "
+            << copy_blocks_.blocks() << " copy blocks";
+}
+
+bool VABCPartitionWriter::ProcessSourceCopyOperation(
+    const InstallOperation& operation,
+    const size_t block_size,
+    const ExtentRanges& copy_blocks,
+    const FileDescriptorPtr& source_fd,
+    android::snapshot::ICowWriter* cow_writer,
+    bool sequence_op_supported) {
+  // COPY ops are already handled during Init(), no need to do actual work, but
+  // we still want to verify that all blocks contain expected data.
+  TEST_AND_RETURN_FALSE(source_fd != nullptr);
+  std::vector<CowOperation> converted;
+
+  const auto& src_extents = operation.src_extents();
+  const auto& dst_extents = operation.dst_extents();
+  BlockIterator it1{src_extents};
+  BlockIterator it2{dst_extents};
+  const bool userSnapshots = android::base::GetBoolProperty(
+      "ro.virtual_ab.userspace.snapshots.enabled", false);
+  // For devices not supporting XOR, sequence op is not supported, so all COPY
+  // operations are written up front in strict merge order.
+  while (!it1.is_end() && !it2.is_end()) {
+    const auto src_block = *it1;
+    const auto dst_block = *it2;
+    ++it1;
+    ++it2;
+    if (src_block == dst_block) {
+      continue;
+    }
+    if (copy_blocks.ContainsBlock(dst_block)) {
+      if (sequence_op_supported) {
+        push_back(&converted, {CowOperation::CowCopy, src_block, dst_block, 1});
+      }
+    } else {
+      push_back(&converted,
+                {CowOperation::CowReplace, src_block, dst_block, 1});
+    }
+  }
+  std::vector<uint8_t> buffer;
+  for (const auto& cow_op : converted) {
+    if (cow_op.op == CowOperation::CowCopy) {
+      if (userSnapshots) {
+        cow_writer->AddCopy(
+            cow_op.dst_block, cow_op.src_block, cow_op.block_count);
+      } else {
+        // Add blocks in reverse order, because snapused specifically prefers
+        // this ordering. Since we already eliminated all self-overlapping
+        // SOURCE_COPY during delta generation, this should be safe to do.
+        for (size_t i = cow_op.block_count; i > 0; i--) {
+          TEST_AND_RETURN_FALSE(cow_writer->AddCopy(cow_op.dst_block + i - 1,
+                                                    cow_op.src_block + i - 1));
+        }
+      }
+      continue;
+    }
+    buffer.resize(block_size * cow_op.block_count);
+    ssize_t bytes_read = 0;
+    TEST_AND_RETURN_FALSE(utils::ReadAll(source_fd,
+                                         buffer.data(),
+                                         block_size * cow_op.block_count,
+                                         cow_op.src_block * block_size,
+                                         &bytes_read));
+    if (bytes_read <= 0 || static_cast<size_t>(bytes_read) != buffer.size()) {
+      LOG(ERROR) << "source_fd->Read failed: " << bytes_read
+                 << "\ncow op: " << cow_op.op;
+      return false;
+    }
+    TEST_AND_RETURN_FALSE(cow_writer->AddRawBlocks(
+        cow_op.dst_block, buffer.data(), buffer.size()));
+  }
+  return true;
+}
+
+bool VABCPartitionWriter::DoesDeviceSupportsXor() {
+  return dynamic_control_->GetVirtualAbCompressionXorFeatureFlag().IsEnabled();
+}
+
+bool VABCPartitionWriter::WriteAllCopyOps() {
+  const bool userSnapshots = android::base::GetBoolProperty(
+      "ro.virtual_ab.userspace.snapshots.enabled", false);
+  for (const auto& cow_op : partition_update_.merge_operations()) {
+    if (cow_op.type() != CowMergeOperation::COW_COPY) {
+      continue;
+    }
+    if (cow_op.dst_extent() == cow_op.src_extent()) {
+      continue;
+    }
+    if (userSnapshots) {
+      TEST_AND_RETURN_FALSE(cow_op.src_extent().num_blocks() != 0);
+      TEST_AND_RETURN_FALSE(
+          cow_writer_->AddCopy(cow_op.dst_extent().start_block(),
+                               cow_op.src_extent().start_block(),
+                               cow_op.src_extent().num_blocks()));
+    } else {
+      // Add blocks in reverse order, because snapused specifically prefers
+      // this ordering. Since we already eliminated all self-overlapping
+      // SOURCE_COPY during delta generation, this should be safe to do.
+      for (size_t i = cow_op.src_extent().num_blocks(); i > 0; i--) {
+        TEST_AND_RETURN_FALSE(
+            cow_writer_->AddCopy(cow_op.dst_extent().start_block() + i - 1,
+                                 cow_op.src_extent().start_block() + i - 1));
+      }
+    }
+  }
+  return true;
 }
 
 bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
@@ -121,22 +227,25 @@ bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
     // TODO(zhangkelvin) Make |source_path| a std::optional<std::string>
     source_path = install_part_.source_path;
   }
-  cow_writer_ = dynamic_control_->OpenCowWriter(
-      install_part_.name, source_path, install_plan->is_resume);
-  TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
 
   // ===== Resume case handling code goes here ====
   // It is possible that the SOURCE_COPY are already written but
   // |next_op_index_| is still 0. In this case we discard previously written
   // SOURCE_COPY, and start over.
+  std::optional<uint64_t> label;
   if (install_plan->is_resume && next_op_index > 0) {
     LOG(INFO) << "Resuming update on partition `"
               << partition_update_.partition_name() << "` op index "
               << next_op_index;
-    TEST_AND_RETURN_FALSE(cow_writer_->InitializeAppend(next_op_index));
+    label = {next_op_index};
+  }
+
+  cow_writer_ =
+      dynamic_control_->OpenCowWriter(install_part_.name, source_path, label);
+  TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
+
+  if (label) {
     return true;
-  } else {
-    TEST_AND_RETURN_FALSE(cow_writer_->Initialize());
   }
 
   // ==============================================
@@ -144,35 +253,21 @@ bool VABCPartitionWriter::Init(const InstallPlan* install_plan,
     if (IsXorEnabled()) {
       LOG(INFO) << "VABC XOR enabled for partition "
                 << partition_update_.partition_name();
+    }
+    // When merge sequence is present in COW, snapuserd will merge blocks in
+    // order specified by the merge seuqnece op. Hence we have the freedom of
+    // writing COPY operations out of order. Delay processing of copy ops so
+    // that update_engine can be more responsive in progress updates.
+    if (DoesDeviceSupportsXor()) {
+      LOG(INFO) << "Snapuserd supports XOR and merge sequence, writing merge "
+                   "sequence and delay writing COPY operations";
       TEST_AND_RETURN_FALSE(WriteMergeSequence(
           partition_update_.merge_operations(), cow_writer_.get()));
-    }
-    const bool userSnapshots = android::base::GetBoolProperty(
-        "ro.virtual_ab.userspace.snapshots.enabled", false);
-
-    for (const auto& cow_op : partition_update_.merge_operations()) {
-      if (cow_op.type() != CowMergeOperation::COW_COPY) {
-        continue;
-      }
-      if (cow_op.dst_extent() == cow_op.src_extent()) {
-        continue;
-      }
-      if (userSnapshots) {
-        TEST_AND_RETURN_FALSE(cow_op.src_extent().num_blocks() != 0);
-        TEST_AND_RETURN_FALSE(
-            cow_writer_->AddCopy(cow_op.dst_extent().start_block(),
-                                 cow_op.src_extent().start_block(),
-                                 cow_op.src_extent().num_blocks()));
-      } else {
-        // Add blocks in reverse order, because snapused specifically prefers
-        // this ordering. Since we already eliminated all self-overlapping
-        // SOURCE_COPY during delta generation, this should be safe to do.
-        for (size_t i = cow_op.src_extent().num_blocks(); i > 0; i--) {
-          TEST_AND_RETURN_FALSE(
-              cow_writer_->AddCopy(cow_op.dst_extent().start_block() + i - 1,
-                                   cow_op.src_extent().start_block() + i - 1));
-        }
-      }
+    } else {
+      LOG(INFO) << "Snapuserd does not support merge sequence, writing all "
+                   "COPY operations up front, this may take few "
+                   "minutes.";
+      TEST_AND_RETURN_FALSE(WriteAllCopyOps());
     }
     cow_writer_->AddLabel(0);
   }
@@ -249,46 +344,14 @@ std::unique_ptr<ExtentWriter> VABCPartitionWriter::CreateBaseExtentWriter() {
 
 [[nodiscard]] bool VABCPartitionWriter::PerformSourceCopyOperation(
     const InstallOperation& operation, ErrorCode* error) {
-  // COPY ops are already handled during Init(), no need to do actual work, but
-  // we still want to verify that all blocks contain expected data.
   auto source_fd = verified_source_fd_.ChooseSourceFD(operation, error);
-  TEST_AND_RETURN_FALSE(source_fd != nullptr);
-  std::vector<CowOperation> converted;
 
-  const auto& src_extents = operation.src_extents();
-  const auto& dst_extents = operation.dst_extents();
-  BlockIterator it1{src_extents};
-  BlockIterator it2{dst_extents};
-  while (!it1.is_end() && !it2.is_end()) {
-    const auto src_block = *it1;
-    const auto dst_block = *it2;
-    ++it1;
-    ++it2;
-    if (src_block == dst_block) {
-      continue;
-    }
-    if (!copy_blocks_.ContainsBlock(dst_block)) {
-      push_back(&converted,
-                {CowOperation::CowReplace, src_block, dst_block, 1});
-    }
-  }
-  std::vector<uint8_t> buffer;
-  for (const auto& cow_op : converted) {
-    buffer.resize(block_size_ * cow_op.block_count);
-    ssize_t bytes_read = 0;
-    TEST_AND_RETURN_FALSE(utils::ReadAll(source_fd,
-                                         buffer.data(),
-                                         block_size_ * cow_op.block_count,
-                                         cow_op.src_block * block_size_,
-                                         &bytes_read));
-    if (bytes_read <= 0 || static_cast<size_t>(bytes_read) != buffer.size()) {
-      LOG(ERROR) << "source_fd->Read failed: " << bytes_read;
-      return false;
-    }
-    TEST_AND_RETURN_FALSE(cow_writer_->AddRawBlocks(
-        cow_op.dst_block, buffer.data(), buffer.size()));
-  }
-  return true;
+  return ProcessSourceCopyOperation(operation,
+                                    block_size_,
+                                    copy_blocks_,
+                                    source_fd,
+                                    cow_writer_.get(),
+                                    DoesDeviceSupportsXor());
 }
 
 bool VABCPartitionWriter::PerformReplaceOperation(const InstallOperation& op,
@@ -297,7 +360,7 @@ bool VABCPartitionWriter::PerformReplaceOperation(const InstallOperation& op,
   // Setup the ExtentWriter stack based on the operation type.
   std::unique_ptr<ExtentWriter> writer = CreateBaseExtentWriter();
 
-  return executor_.ExecuteReplaceOperation(op, std::move(writer), data, count);
+  return executor_.ExecuteReplaceOperation(op, std::move(writer), data);
 }
 
 bool VABCPartitionWriter::PerformDiffOperation(
@@ -312,7 +375,11 @@ bool VABCPartitionWriter::PerformDiffOperation(
 
   std::unique_ptr<ExtentWriter> writer =
       IsXorEnabled() ? std::make_unique<XORExtentWriter>(
-                           operation, source_fd, cow_writer_.get(), xor_map_)
+                           operation,
+                           source_fd,
+                           cow_writer_.get(),
+                           xor_map_,
+                           partition_update_.old_partition_info().size())
                      : CreateBaseExtentWriter();
   return executor_.ExecuteDiffOperation(
       operation, std::move(writer), source_fd, data, count);
@@ -333,7 +400,10 @@ void VABCPartitionWriter::CheckpointUpdateProgress(size_t next_op_index) {
   TEST_AND_RETURN_FALSE(cow_writer_ != nullptr);
   TEST_AND_RETURN_FALSE(cow_writer_->AddLabel(kEndOfInstallLabel));
   TEST_AND_RETURN_FALSE(cow_writer_->Finalize());
-  TEST_AND_RETURN_FALSE(cow_writer_->VerifyMergeOps());
+
+  auto cow_reader = cow_writer_->OpenReader();
+  TEST_AND_RETURN_FALSE(cow_reader);
+  TEST_AND_RETURN_FALSE(cow_reader->VerifyMergeOps());
   return true;
 }
 
@@ -345,7 +415,9 @@ int VABCPartitionWriter::Close() {
   if (cow_writer_) {
     LOG(INFO) << "Finalizing " << partition_update_.partition_name()
               << " COW image";
-    cow_writer_->Finalize();
+    if (!cow_writer_->Finalize()) {
+      return -errno;
+    }
     cow_writer_ = nullptr;
   }
   return 0;
