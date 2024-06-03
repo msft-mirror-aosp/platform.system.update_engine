@@ -161,6 +161,7 @@ off_t FileSize(int fd);
 
 bool SendFile(int out_fd, int in_fd, size_t count);
 
+bool FsyncDirectoryContents(const char* dirname);
 bool FsyncDirectory(const char* dirname);
 bool DeleteDirectory(const char* dirname);
 bool WriteStringToFileAtomic(const std::string& path, std::string_view content);
@@ -558,6 +559,8 @@ constexpr std::string_view ToStringView(
 
 [[nodiscard]] std::string_view ToStringView(const void* data,
                                             size_t size) noexcept;
+
+bool GetTempName(const std::string& path, base::FilePath* template_path);
 
 }  // namespace chromeos_update_engine
 
