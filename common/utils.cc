@@ -57,7 +57,9 @@
 
 #include "update_engine/common/constants.h"
 #include "update_engine/common/subprocess.h"
+#ifdef __ANDROID__
 #include "update_engine/common/platform_constants.h"
+#endif
 #include "update_engine/payload_consumer/file_descriptor.h"
 
 using base::Time;
@@ -84,6 +86,7 @@ const int kGetFileFormatMaxHeaderSize = 32;
 // The path to the kernel's boot_id.
 const char kBootIdPath[] = "/proc/sys/kernel/random/boot_id";
 
+}  // namespace
 // If |path| is absolute, or explicit relative to the current working directory,
 // leaves it as is. Otherwise, uses the system's temp directory, as defined by
 // base::GetTempDir() and prepends it to |path|. On success stores the full
@@ -107,8 +110,6 @@ bool GetTempName(const string& path, base::FilePath* template_path) {
   *template_path = temp_dir.Append(path);
   return true;
 }
-
-}  // namespace
 
 namespace utils {
 
@@ -369,7 +370,7 @@ off_t BlockDevSize(int fd) {
 }
 
 off_t FileSize(int fd) {
-  struct stat stbuf {};
+  struct stat stbuf{};
   int rc = fstat(fd, &stbuf);
   CHECK_EQ(rc, 0);
   if (rc < 0) {
@@ -410,7 +411,55 @@ bool SendFile(int out_fd, int in_fd, size_t count) {
   return true;
 }
 
+bool DeleteDirectory(const char* dirname) {
+  if (!std::filesystem::exists(dirname)) {
+    return true;
+  }
+  const std::string tmpdir = std::string(dirname) + "_deleted";
+  std::filesystem::remove_all(tmpdir);
+  if (rename(dirname, tmpdir.c_str()) != 0) {
+    PLOG(ERROR) << "Failed to rename " << dirname << " to " << tmpdir;
+    return false;
+  }
+  std::filesystem::remove_all(tmpdir);
+  return true;
+}
+
+bool FsyncDirectoryContents(const char* dirname) {
+  std::filesystem::path dir_path(dirname);
+
+  std::error_code ec;
+  if (!std::filesystem::exists(dir_path, ec) ||
+      !std::filesystem::is_directory(dir_path, ec)) {
+    LOG(ERROR) << "Error: Invalid directory path: " << dirname << std::endl;
+    return false;
+  }
+
+  for (const auto& entry : std::filesystem::directory_iterator(dirname, ec)) {
+    if (entry.is_regular_file()) {
+      int fd = open(entry.path().c_str(), O_RDONLY | O_CLOEXEC);
+      if (fd == -1) {
+        LOG(ERROR) << "open failed: " << entry.path();
+        return false;
+      }
+
+      if (fsync(fd) == -1) {
+        LOG(ERROR) << "fsync failed";
+        return false;
+      }
+
+      close(fd);
+    }
+  }
+
+  return true;
+}
+
 bool FsyncDirectory(const char* dirname) {
+  if (!FsyncDirectoryContents(dirname)) {
+    LOG(ERROR) << "failed to fsync directory contents";
+    return false;
+  }
   android::base::unique_fd fd(
       TEMP_FAILURE_RETRY(open(dirname, O_RDONLY | O_CLOEXEC)));
   if (fd == -1) {
@@ -538,17 +587,17 @@ string MakePartitionName(const string& disk_name, int partition_num) {
 }
 
 bool FileExists(const char* path) {
-  struct stat stbuf {};
+  struct stat stbuf{};
   return 0 == lstat(path, &stbuf);
 }
 
 bool IsSymlink(const char* path) {
-  struct stat stbuf {};
+  struct stat stbuf{};
   return lstat(path, &stbuf) == 0 && S_ISLNK(stbuf.st_mode) != 0;
 }
 
 bool IsRegFile(const char* path) {
-  struct stat stbuf {};
+  struct stat stbuf{};
   return lstat(path, &stbuf) == 0 && S_ISREG(stbuf.st_mode) != 0;
 }
 
@@ -597,6 +646,55 @@ bool SetBlockDeviceReadOnly(const string& device, bool read_only) {
   if (rc != 0) {
     PLOG(ERROR) << "Marking block device " << device
                 << " as read_only=" << expected_flag;
+    return false;
+  }
+
+  /*
+   * Read back the value to check if it is configured successfully.
+   * If fail, use the second method, set the file
+   * /sys/block/<partition_name>/force_ro
+   * to config the read only property.
+   */
+  rc = ioctl(fd, BLKROGET, &read_only_flag);
+  if (rc != 0) {
+    PLOG(ERROR) << "Failed to read back block device read-only value:"
+                << device;
+    return false;
+  }
+  if (read_only_flag == expected_flag) {
+    return true;
+  }
+
+  std::array<char, PATH_MAX> device_name;
+  char* pdevice = realpath(device.c_str(), device_name.data());
+  TEST_AND_RETURN_FALSE_ERRNO(pdevice);
+
+  std::string real_path(pdevice);
+  std::size_t offset = real_path.find_last_of('/');
+  if (offset == std::string::npos) {
+    LOG(ERROR) << "Could not find partition name from " << real_path;
+    return false;
+  }
+  const std::string partition_name = real_path.substr(offset + 1);
+
+  std::string force_ro_file = "/sys/block/" + partition_name + "/force_ro";
+  android::base::unique_fd fd_force_ro{
+      HANDLE_EINTR(open(force_ro_file.c_str(), O_WRONLY | O_CLOEXEC))};
+  TEST_AND_RETURN_FALSE_ERRNO(fd_force_ro >= 0);
+
+  rc = write(fd_force_ro, expected_flag ? "1" : "0", 1);
+  TEST_AND_RETURN_FALSE_ERRNO(rc > 0);
+
+  // Read back again
+  rc = ioctl(fd, BLKROGET, &read_only_flag);
+  if (rc != 0) {
+    PLOG(ERROR) << "Failed to read back block device read-only value:"
+                << device;
+    return false;
+  }
+  if (read_only_flag != expected_flag) {
+    LOG(ERROR) << "After modifying force_ro, marking block device " << device
+               << " as read_only=" << expected_flag;
     return false;
   }
   return true;
@@ -654,8 +752,7 @@ bool UnmountFilesystem(const string& mountpoint) {
 }
 
 bool IsMountpoint(const std::string& mountpoint) {
-  struct stat stdir {
-  }, stparent{};
+  struct stat stdir{}, stparent{};
 
   // Check whether the passed mountpoint is a directory and the /.. is in the
   // same device or not. If mountpoint/.. is in a different device it means that
@@ -1099,7 +1196,7 @@ string GetFilePath(int fd) {
 }
 
 string GetTimeAsString(time_t utime) {
-  struct tm tm {};
+  struct tm tm{};
   CHECK_EQ(localtime_r(&utime, &tm), &tm);
   char str[16];
   CHECK_EQ(strftime(str, sizeof(str), "%Y%m%d-%H%M%S", &tm), 15u);
