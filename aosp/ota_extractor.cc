@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <future>
 #include <iterator>
 #include <memory>
 
@@ -53,6 +54,7 @@ DEFINE_string(partitions,
               "",
               "Comma separated list of partitions to extract, leave empty for "
               "extracting all partitions");
+DEFINE_bool(single_thread, false, "Limit extraction to a single thread");
 
 using chromeos_update_engine::DeltaArchiveManifest;
 using chromeos_update_engine::PayloadMetadata;
@@ -195,19 +197,33 @@ bool ExtractImagesFromOTA(const DeltaArchiveManifest& manifest,
                             metadata.GetMetadataSignatureSize() +
                             payload_offset;
 
-  for (const auto& partition : manifest.partitions()) {
-    if (!partitions.empty() &&
-        partitions.count(partition.partition_name()) == 0) {
-      continue;
+  if (FLAGS_single_thread) {
+    for (const auto& partition : manifest.partitions()) {
+      if (!ExtractImageFromPartition(manifest,
+                                     partition,
+                                     data_begin,
+                                     payload_fd,
+                                     input_dir,
+                                     output_dir)) {
+        return false;
+      }
     }
-
-    if (!ExtractImageFromPartition(manifest,
+  } else {
+    std::vector<std::future<bool>> futures;
+    for (const auto& partition : manifest.partitions()) {
+      futures.push_back(std::async(std::launch::async,
+                                   ExtractImageFromPartition,
+                                   manifest,
                                    partition,
                                    data_begin,
                                    payload_fd,
                                    input_dir,
-                                   output_dir)) {
-      return false;
+                                   output_dir));
+    }
+    for (auto& future : futures) {
+      if (!future.get()) {
+        return false;
+      }
     }
   }
   return true;
