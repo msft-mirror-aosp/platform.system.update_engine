@@ -134,7 +134,8 @@ bool ExtractImageFromPartition(const DeltaArchiveManifest& manifest,
       TEST_AND_RETURN_FALSE(fd_utils::ReadAndHashExtents(
           in_fd, op.src_extents(), manifest.block_size(), &actual_hash));
       CHECK_EQ(HexEncode(ToStringView(actual_hash)),
-               HexEncode(op.src_sha256_hash()));
+               HexEncode(op.src_sha256_hash()))
+          << ", failed partition: " << partition.partition_name();
     }
 
     blob.resize(op.data_length());
@@ -146,7 +147,8 @@ bool ExtractImageFromPartition(const DeltaArchiveManifest& manifest,
       brillo::Blob actual_hash;
       TEST_AND_RETURN_FALSE(HashCalculator::RawHashOfData(blob, &actual_hash));
       CHECK_EQ(HexEncode(ToStringView(actual_hash)),
-               HexEncode(op.data_sha256_hash()));
+               HexEncode(op.data_sha256_hash()))
+          << ", failed partition: " << partition.partition_name();
     }
     auto direct_writer = std::make_unique<DirectExtentWriter>(out_fd);
     if (op.type() == InstallOperation::ZERO) {
@@ -158,11 +160,13 @@ bool ExtractImageFromPartition(const DeltaArchiveManifest& manifest,
       TEST_AND_RETURN_FALSE(executor.ExecuteReplaceOperation(
           op, std::move(direct_writer), blob.data()));
     } else if (op.type() == InstallOperation::SOURCE_COPY) {
-      CHECK(in_fd->IsOpen());
+      CHECK(in_fd->IsOpen())
+          << ", failed partition: " << partition.partition_name();
       TEST_AND_RETURN_FALSE(executor.ExecuteSourceCopyOperation(
           op, std::move(direct_writer), in_fd));
     } else {
-      CHECK(in_fd->IsOpen());
+      CHECK(in_fd->IsOpen())
+          << ", failed partition: " << partition.partition_name();
       TEST_AND_RETURN_FALSE(executor.ExecuteDiffOperation(
           op, std::move(direct_writer), in_fd, blob.data(), blob.size()));
     }
@@ -183,6 +187,8 @@ bool ExtractImageFromPartition(const DeltaArchiveManifest& manifest,
       << " hash mismatches. Either the source image or OTA package is "
          "corrupted.";
 
+  LOG(INFO) << "Extracted partition " << partition.partition_name();
+
   return true;
 }
 
@@ -196,6 +202,7 @@ bool ExtractImagesFromOTA(const DeltaArchiveManifest& manifest,
   const size_t data_begin = metadata.GetMetadataSize() +
                             metadata.GetMetadataSignatureSize() +
                             payload_offset;
+  bool ret = true;
 
   if (FLAGS_single_thread) {
     for (const auto& partition : manifest.partitions()) {
@@ -205,28 +212,33 @@ bool ExtractImagesFromOTA(const DeltaArchiveManifest& manifest,
                                      payload_fd,
                                      input_dir,
                                      output_dir)) {
-        return false;
+        ret = false;
+        LOG(ERROR) << "Extraction of partition " << partition.partition_name()
+                   << " failed";
+        break;
       }
     }
   } else {
-    std::vector<std::future<bool>> futures;
+    std::vector<std::pair<std::future<bool>, std::string>> futures;
     for (const auto& partition : manifest.partitions()) {
-      futures.push_back(std::async(std::launch::async,
-                                   ExtractImageFromPartition,
-                                   manifest,
-                                   partition,
-                                   data_begin,
-                                   payload_fd,
-                                   input_dir,
-                                   output_dir));
+      futures.push_back(std::make_pair(std::async(std::launch::async,
+                                                  ExtractImageFromPartition,
+                                                  manifest,
+                                                  partition,
+                                                  data_begin,
+                                                  payload_fd,
+                                                  input_dir,
+                                                  output_dir),
+                                       partition.partition_name()));
     }
     for (auto& future : futures) {
-      if (!future.get()) {
-        return false;
+      if (!future.first.get()) {
+        ret = false;
+        LOG(ERROR) << "Extraction of partition " << future.second << " failed";
       }
     }
   }
-  return true;
+  return ret;
 }
 
 }  // namespace chromeos_update_engine
