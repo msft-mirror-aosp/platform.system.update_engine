@@ -317,6 +317,7 @@ bool DynamicPartitionControlAndroid::UnmapAllPartitions() {
 
 void DynamicPartitionControlAndroid::Cleanup() {
   UnmapAllPartitions();
+  LOG(INFO) << "UnmapAllPartitions done";
   metadata_device_.reset();
   if (GetVirtualAbFeatureFlag().IsEnabled()) {
     snapshot_ = SnapshotManager::New();
@@ -324,6 +325,7 @@ void DynamicPartitionControlAndroid::Cleanup() {
     snapshot_ = SnapshotManagerStub::New();
   }
   CHECK(snapshot_ != nullptr) << "Cannot initialize SnapshotManager.";
+  LOG(INFO) << "SnapshotManager initialized.";
 }
 
 bool DynamicPartitionControlAndroid::DeviceExists(const std::string& path) {
