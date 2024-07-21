@@ -299,6 +299,8 @@ bool UpdateAttempterAndroid::ApplyPayload(
   install_plan_.is_resume = !payload_id.empty() &&
                             DeltaPerformer::CanResumeUpdate(prefs_, payload_id);
   if (!install_plan_.is_resume) {
+    LOG(INFO) << "Starting a new update " << payload_url
+              << " size: " << payload_size << " offset: " << payload_offset;
     boot_control_->GetDynamicPartitionControl()->Cleanup();
     boot_control_->GetDynamicPartitionControl()->ResetUpdate(prefs_);
 
