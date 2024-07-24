@@ -128,11 +128,8 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
       *operations.Add() = aop.op;
     }
 
-    FileDescriptorPtr source_fd = nullptr;
-    if (config_.enable_vabc_xor) {
-      source_fd = std::make_shared<EintrSafeFileDescriptor>();
-      source_fd->Open(old_part_.path.c_str(), O_RDONLY);
-    }
+    FileDescriptorPtr source_fd = std::make_shared<EintrSafeFileDescriptor>();
+    source_fd->Open(old_part_.path.c_str(), O_RDONLY);
 
     *cow_info_ = EstimateCowSizeInfo(
         std::move(source_fd),
@@ -142,10 +139,16 @@ class PartitionProcessor : public base::DelegateSimpleThread::Delegate {
         config_.block_size,
         config_.target.dynamic_partition_metadata->vabc_compression_param(),
         new_part_.size,
+        old_part_.size,
         config_.enable_vabc_xor,
         config_.target.dynamic_partition_metadata->cow_version(),
         config_.target.dynamic_partition_metadata->compression_factor());
 
+    // add a 1% overhead to our estimation
+    cow_info_->cow_size = cow_info_->cow_size * 1.01;
+    if (config_.target.dynamic_partition_metadata->cow_version() >= 3) {
+      cow_info_->op_count_max = std::max(int(cow_info_->op_count_max), 25);
+    }
     // ops buffer size == 0 for v2 version of cow format
     LOG(INFO) << "Estimated COW size for partition: " << new_part_.name << " "
               << cow_info_->cow_size
