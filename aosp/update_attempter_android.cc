@@ -850,6 +850,9 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
 
   boot_control_->GetDynamicPartitionControl()->Cleanup();
 
+  for (auto observer : daemon_state_->service_observers())
+    observer->SendPayloadApplicationComplete(error_code);
+
   download_progress_ = 0;
   UpdateStatus new_status =
       (error_code == ErrorCode::kSuccess ? UpdateStatus::UPDATED_NEED_REBOOT
@@ -862,9 +865,6 @@ void UpdateAttempterAndroid::TerminateUpdateAndNotify(ErrorCode error_code) {
   if (!network_selector_->SetProcessNetwork(kDefaultNetworkId)) {
     LOG(WARNING) << "Unable to unbind network.";
   }
-
-  for (auto observer : daemon_state_->service_observers())
-    observer->SendPayloadApplicationComplete(error_code);
 
   CollectAndReportUpdateMetricsOnUpdateFinished(error_code);
   ClearMetricsPrefs();
