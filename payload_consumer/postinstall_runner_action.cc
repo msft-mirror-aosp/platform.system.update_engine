@@ -126,7 +126,7 @@ void PostinstallRunnerAction::PerformAction() {
   // if this is a full/normal powerwash, or a special rollback powerwash
   // that retains a small amount of system state such as enrollment and
   // network configuration. In both cases all user accounts are deleted.
-  if (install_plan_.powerwash_required || install_plan_.is_rollback) {
+  if (install_plan_.powerwash_required) {
     if (hardware_->SchedulePowerwash(
             install_plan_.rollback_data_save_requested)) {
       powerwash_scheduled_ = true;
