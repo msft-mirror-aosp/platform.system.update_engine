@@ -391,11 +391,11 @@ bool UpdateAttempterAndroid::ApplyPayload(
     auto entries =
         android::base::Split(headers[kPayloadPropertyHTTPExtras], " ");
     for (auto& entry : entries) {
-      auto parts = android::base::Split(entry, ":");
+      auto parts = android::base::Split(entry, ";");
       if (parts.size() != 2) {
         LOG(ERROR)
             << "HTTP headers are not in expected format. "
-               "headers[kPayloadPropertyHTTPExtras] = key1:val1 key2:val2";
+               "headers[kPayloadPropertyHTTPExtras] = key1;val1 key2;val2";
         continue;
       }
       fetcher->SetHeader(parts[0], parts[1]);
