@@ -163,7 +163,7 @@ static constexpr const auto& kPayloadPropertyMetadataSize = "METADATA_SIZE";
 static constexpr const auto& kPayloadPropertyMetadataHash = "METADATA_HASH";
 // The Authorization: HTTP header to be sent when downloading the payload.
 static constexpr const auto& kPayloadPropertyAuthorization = "AUTHORIZATION";
-// HTTP headers extra entries in the format of key1:val1 key2:val2 key3:val3
+// HTTP headers extra entries in the format of key1;val1 key2;val2 key3;val3
 static constexpr const auto& kPayloadPropertyHTTPExtras = "HTTP_EXTRAS";
 // The User-Agent HTTP header to be sent when downloading the payload.
 static constexpr const auto& kPayloadPropertyUserAgent = "USER_AGENT";
