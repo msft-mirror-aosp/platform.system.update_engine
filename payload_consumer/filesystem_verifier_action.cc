@@ -319,7 +319,7 @@ void FilesystemVerifierAction::HashPartition(const off64_t start_offset,
     return;
   }
   const auto read_size =
-      std::min<size_t>(buffer_size, end_offset - start_offset);
+      std::min<uint64_t>(buffer_size, end_offset - start_offset);
   const auto bytes_read = fd->Read(buffer, read_size);
   if (bytes_read < 0 || static_cast<size_t>(bytes_read) != read_size) {
     PLOG(ERROR) << "Failed to read offset " << start_offset << " expected "
