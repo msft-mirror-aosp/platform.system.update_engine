@@ -109,7 +109,7 @@ class FilesystemVerifierAction : public InstallPlanAction {
 
   bool IsVABC(const InstallPlan::Partition& partition) const;
 
-  size_t GetPartitionSize() const;
+  uint64_t GetPartitionSize() const;
 
   // When the read is done, finalize the hash checking of the current partition
   // and continue checking the next one.
