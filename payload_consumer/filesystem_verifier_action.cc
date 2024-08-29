@@ -456,7 +456,7 @@ const std::string& FilesystemVerifierAction::GetPartitionPath() const {
   }
 }
 
-size_t FilesystemVerifierAction::GetPartitionSize() const {
+uint64_t FilesystemVerifierAction::GetPartitionSize() const {
   const InstallPlan::Partition& partition =
       install_plan_.partitions[partition_index_];
   switch (verifier_step_) {
