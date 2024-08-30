@@ -406,7 +406,6 @@ void FilesystemVerifierAction::StartPartitionHashing() {
   buffer_.resize(kReadFileBufferSize);
   hasher_ = std::make_unique<HashCalculator>();
 
-  offset_ = 0;
   filesystem_data_end_ = partition_size_;
   if (partition.fec_offset > 0) {
     CHECK_LE(partition.hash_tree_offset, partition.fec_offset)
