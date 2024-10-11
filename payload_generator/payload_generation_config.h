@@ -266,7 +266,7 @@ struct PayloadGenerationConfig {
 
   std::string security_patch_level;
 
-  uint32_t max_threads = 0;
+  uint32_t max_threads = 1;
 
   std::vector<bsdiff::CompressorType> compressors{
       bsdiff::CompressorType::kBZ2, bsdiff::CompressorType::kBrotli};
