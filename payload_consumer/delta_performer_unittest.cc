@@ -30,7 +30,7 @@
 #include <base/files/scoped_temp_dir.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
+#include <android-base/stringprintf.h>
 #include <brillo/secure_blob.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/repeated_field.h>
