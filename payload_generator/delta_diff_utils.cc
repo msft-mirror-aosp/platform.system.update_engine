@@ -1208,9 +1208,9 @@ bool IsExtFilesystem(const string& device) {
   return true;
 }
 
-// Return the number of CPUs on the machine, and 4 threads in minimum.
+// Return the number of CPUs on the machine, and 1 threads in minimum.
 size_t GetMaxThreads() {
-  return std::max(sysconf(_SC_NPROCESSORS_ONLN), 4L);
+  return std::max(sysconf(_SC_NPROCESSORS_ONLN), 1L);
 }
 
 }  // namespace diff_utils
