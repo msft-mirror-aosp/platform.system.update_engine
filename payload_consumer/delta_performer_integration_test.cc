@@ -904,12 +904,11 @@ void VerifyPayloadResult(DeltaPerformer* performer,
     // no need to verify new partition if VerifyPayload failed.
     return;
   }
-
-  CompareFilesByBlock(state->result_kernel->path(),
-                      state->new_kernel->path(),
-                      state->kernel_size);
-  CompareFilesByBlock(
-      state->result_img->path(), state->b_img->path(), state->image_size);
+  ASSERT_NO_FATAL_FAILURE(CompareFilesByBlock(state->result_kernel->path(),
+                                              state->new_kernel->path(),
+                                              state->kernel_size));
+  ASSERT_NO_FATAL_FAILURE(CompareFilesByBlock(
+      state->result_img->path(), state->b_img->path(), state->image_size));
 
   brillo::Blob updated_kernel_partition;
   ASSERT_TRUE(
@@ -955,7 +954,8 @@ void VerifyPayload(DeltaPerformer* performer,
       break;  // appease gcc
   }
 
-  VerifyPayloadResult(performer, state, expected_result, minor_version);
+  ASSERT_NO_FATAL_FAILURE(
+      VerifyPayloadResult(performer, state, expected_result, minor_version));
 }
 
 void DoSmallImageTest(bool full_kernel,
@@ -966,22 +966,23 @@ void DoSmallImageTest(bool full_kernel,
                       uint32_t minor_version) {
   DeltaState state;
   DeltaPerformer* performer = nullptr;
-  GenerateDeltaFile(full_kernel,
-                    full_rootfs,
-                    chunk_size,
-                    signature_test,
-                    &state,
-                    minor_version);
+  ASSERT_NO_FATAL_FAILURE(GenerateDeltaFile(full_kernel,
+                                            full_rootfs,
+                                            chunk_size,
+                                            signature_test,
+                                            &state,
+                                            minor_version));
 
-  ApplyDeltaFile(full_kernel,
-                 full_rootfs,
-                 signature_test,
-                 &state,
-                 hash_checks_mandatory,
-                 kValidOperationData,
-                 &performer,
-                 minor_version);
-  VerifyPayload(performer, &state, signature_test, minor_version);
+  ASSERT_NO_FATAL_FAILURE(ApplyDeltaFile(full_kernel,
+                                         full_rootfs,
+                                         signature_test,
+                                         &state,
+                                         hash_checks_mandatory,
+                                         kValidOperationData,
+                                         &performer,
+                                         minor_version));
+  ASSERT_NO_FATAL_FAILURE(
+      VerifyPayload(performer, &state, signature_test, minor_version));
   delete performer;
 }
 
@@ -991,14 +992,14 @@ void DoOperationHashMismatchTest(OperationHashTest op_hash_test,
   uint64_t minor_version = kFullPayloadMinorVersion;
   GenerateDeltaFile(true, true, -1, kSignatureGenerated, &state, minor_version);
   DeltaPerformer* performer = nullptr;
-  ApplyDeltaFile(true,
-                 true,
-                 kSignatureGenerated,
-                 &state,
-                 hash_checks_mandatory,
-                 op_hash_test,
-                 &performer,
-                 minor_version);
+  ASSERT_NO_FATAL_FAILURE(ApplyDeltaFile(true,
+                                         true,
+                                         kSignatureGenerated,
+                                         &state,
+                                         hash_checks_mandatory,
+                                         op_hash_test,
+                                         &performer,
+                                         minor_version));
   delete performer;
 }
 

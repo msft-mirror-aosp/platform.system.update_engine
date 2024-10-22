@@ -764,6 +764,9 @@ int Main(int argc, char** argv) {
 
   payload_config.security_patch_level = FLAGS_security_patch_level;
 
+  if (FLAGS_max_threads < 1) {
+    FLAGS_max_threads = 1;
+  }
   payload_config.max_threads = FLAGS_max_threads;
 
   if (!FLAGS_partition_timestamps.empty()) {
