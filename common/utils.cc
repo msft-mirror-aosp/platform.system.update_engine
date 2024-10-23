@@ -39,6 +39,7 @@
 #include <utility>
 #include <vector>
 
+#include <android-base/stringprintf.h>
 #include <android-base/strings.h>
 #include <base/callback.h>
 #include <base/files/file_path.h>
@@ -52,7 +53,6 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
-#include <android-base/stringprintf.h>
 #include <brillo/data_encoding.h>
 
 #include "update_engine/common/constants.h"
@@ -892,21 +892,21 @@ string FormatTimeDelta(TimeDelta delta) {
   unsigned usecs = delta.InMicroseconds();
 
   if (days)
-    base::StringAppendF(&str, "%ud", days);
+    android::base::StringAppendF(&str, "%ud", days);
   if (days || hours)
-    base::StringAppendF(&str, "%uh", hours);
+    android::base::StringAppendF(&str, "%uh", hours);
   if (days || hours || mins)
-    base::StringAppendF(&str, "%um", mins);
-  base::StringAppendF(&str, "%u", secs);
+    android::base::StringAppendF(&str, "%um", mins);
+  android::base::StringAppendF(&str, "%u", secs);
   if (usecs) {
     int width = 6;
     while ((usecs / 10) * 10 == usecs) {
       usecs /= 10;
       width--;
     }
-    base::StringAppendF(&str, ".%0*u", width, usecs);
+    android::base::StringAppendF(&str, ".%0*u", width, usecs);
   }
-  base::StringAppendF(&str, "s");
+  android::base::StringAppendF(&str, "s");
   return str;
 }
 
