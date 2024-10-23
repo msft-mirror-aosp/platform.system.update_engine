@@ -197,7 +197,7 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
     std::vector<PartitionProcessor> partition_tasks{};
     auto thread_count = std::min<size_t>(diff_utils::GetMaxThreads(),
                                          config.target.partitions.size());
-    if (thread_count > config.max_threads) {
+    if (thread_count > config.max_threads && config.max_threads > 0) {
       thread_count = config.max_threads;
     }
     if (thread_count < 1) {
@@ -205,6 +205,8 @@ bool GenerateUpdatePayloadFile(const PayloadGenerationConfig& config,
     }
     base::DelegateSimpleThreadPool thread_pool{"partition-thread-pool",
                                                static_cast<int>(thread_count)};
+    LOG(INFO) << "Using " << thread_count << " threads to process "
+              << config.target.partitions.size() << " partitions";
     for (size_t i = 0; i < config.target.partitions.size(); i++) {
       const PartitionConfig& old_part =
           config.is_delta ? config.source.partitions[i] : empty_part;
