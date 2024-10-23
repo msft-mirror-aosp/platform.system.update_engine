@@ -52,7 +52,7 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
+#include <android-base/stringprintf.h>
 #include <brillo/data_encoding.h>
 
 #include "update_engine/common/constants.h"
@@ -913,13 +913,13 @@ string FormatTimeDelta(TimeDelta delta) {
 string ToString(const Time utc_time) {
   Time::Exploded exp_time{};
   utc_time.UTCExplode(&exp_time);
-  return base::StringPrintf("%d/%d/%d %d:%02d:%02d GMT",
-                            exp_time.month,
-                            exp_time.day_of_month,
-                            exp_time.year,
-                            exp_time.hour,
-                            exp_time.minute,
-                            exp_time.second);
+  return android::base::StringPrintf("%d/%d/%d %d:%02d:%02d GMT",
+                                     exp_time.month,
+                                     exp_time.day_of_month,
+                                     exp_time.year,
+                                     exp_time.hour,
+                                     exp_time.minute,
+                                     exp_time.second);
 }
 
 string ToString(bool b) {
@@ -1005,9 +1005,9 @@ string CalculateP2PFileId(const brillo::Blob& payload_hash,
                           size_t payload_size) {
   string encoded_hash = brillo::data_encoding::Base64Encode(
       brillo::data_encoding::Base64Encode(payload_hash));
-  return base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
-                            payload_size,
-                            encoded_hash.c_str());
+  return android::base::StringPrintf("cros_update_size_%" PRIuS "_hash_%s",
+                                     payload_size,
+                                     encoded_hash.c_str());
 }
 
 bool ConvertToOmahaInstallDate(Time time, int* out_num_days) {
