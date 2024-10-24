@@ -30,7 +30,6 @@
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/logging.h>
-#include <base/stl_util.h>
 #include <base/strings/string_split.h>
 #include <base/strings/string_util.h>
 
@@ -113,9 +112,11 @@ void PostinstallRunnerAction::PerformAction() {
 
   // Mount snapshot partitions for Virtual AB Compression Compression.
   if (dynamic_control->UpdateUsesSnapshotCompression()) {
-    // Before calling MapAllPartitions to map snapshot devices, all CowWriters
-    // must be closed, and MapAllPartitions() should be called.
-    if (!install_plan_.partitions.empty()) {
+    // If we are switching slots, then we are required to MapAllPartitions,
+    // as FinishUpdate() requires all partitions to be mapped.
+    // And switching slots requires FinishUpdate() to be called first
+    if (!install_plan_.partitions.empty() ||
+        install_plan_.switch_slot_on_reboot) {
       if (!dynamic_control->MapAllPartitions()) {
         return CompletePostinstall(ErrorCode::kPostInstallMountError);
       }
@@ -325,7 +326,7 @@ void PostinstallRunnerAction::OnProgressFdReady() {
     bytes_read = 0;
     bool eof;
     bool ok =
-        utils::ReadAll(progress_fd_, buf, base::size(buf), &bytes_read, &eof);
+        utils::ReadAll(progress_fd_, buf, std::size(buf), &bytes_read, &eof);
     progress_buffer_.append(buf, bytes_read);
     // Process every line.
     vector<string> lines = base::SplitString(
@@ -456,14 +457,6 @@ void PostinstallRunnerAction::CompletePostinstall(ErrorCode error_code) {
   };
   if (error_code == ErrorCode::kSuccess) {
     if (install_plan_.switch_slot_on_reboot) {
-      if constexpr (!constants::kIsRecovery) {
-        if (!boot_control_->GetDynamicPartitionControl()->MapAllPartitions()) {
-          LOG(WARNING)
-              << "Failed to map all partitions before marking snapshot as "
-                 "ready for slot switch. Subsequent FinishUpdate() call may or "
-                 "may not work";
-        }
-      }
       if (!boot_control_->GetDynamicPartitionControl()->FinishUpdate(
               install_plan_.powerwash_required) ||
           !boot_control_->SetActiveBootSlot(install_plan_.target_slot)) {
