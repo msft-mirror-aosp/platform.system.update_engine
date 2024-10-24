@@ -1204,7 +1204,7 @@ string GetTimeAsString(time_t utime) {
 }
 
 string GetExclusionName(const string& str_to_convert) {
-  return base::NumberToString(base::StringPieceHash()(str_to_convert));
+  return std::format("{}", base::StringPieceHash()(str_to_convert));
 }
 
 static bool ParseTimestamp(std::string_view str, int64_t* out) {
