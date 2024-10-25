@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include <android-base/stringprintf.h>
 #include <base/bind.h>
 #include <base/location.h>
 #include <base/logging.h>
@@ -35,7 +36,6 @@
 #include <base/stl_util.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <android-base/stringprintf.h>
 #if BASE_VER >= 780000  // CrOS
 #include <base/task/single_thread_task_executor.h>
 #endif  // BASE_VER >= 780000
@@ -1123,10 +1123,10 @@ void MultiTest(HttpFetcher* fetcher_in,
        ++it) {
     string tmp_str = android::base::StringPrintf("%jd+", it->first);
     if (it->second > 0) {
-      base::StringAppendF(&tmp_str, "%jd", it->second);
+      android::base::StringAppendF(&tmp_str, "%jd", it->second);
       multi_fetcher->AddRange(it->first, it->second);
     } else {
-      base::StringAppendF(&tmp_str, "?");
+      android::base::StringAppendF(&tmp_str, "?");
       multi_fetcher->AddRange(it->first);
     }
     LOG(INFO) << "added range: " << tmp_str;
