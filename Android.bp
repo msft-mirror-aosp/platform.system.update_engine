@@ -80,6 +80,9 @@ cc_defaults {
             cflags: [
                 "-DUSE_FEC=1",
             ],
+            shared_libs: [
+                "libbase",
+            ],
         },
         host: {
             cflags: [
@@ -501,6 +504,29 @@ cc_defaults {
         "libpayload_consumer_proto-full",
         "libupdate_engine_boot_control_proto-full",
     ],
+}
+
+aidl_interface {
+    name: "libupdate_engine_aidl_interface",
+    srcs: [
+        ":libupdate_engine_aidl",
+    ],
+    backend: {
+        cpp: {
+            enabled: false,
+        },
+        java: {
+            enabled: false,
+        },
+        ndk: {
+            enabled: false,
+        },
+        rust: {
+            enabled: true,
+        },
+    },
+    frozen: false,
+    unstable: true,
 }
 
 cc_defaults {
