@@ -711,7 +711,6 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
   LOG(INFO) << "Processing Done.";
   metric_bytes_downloaded_.Flush(true);
   metric_total_bytes_downloaded_.Flush(true);
-  last_error_ = code;
   if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
     TerminateUpdateAndNotify(code);
     return;
@@ -1339,6 +1338,9 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
   // Don't run postinstall, we just need PostinstallAction to switch the slots.
   install_plan_.run_post_install = false;
   install_plan_.is_resume = true;
+  // previous ApplyPayload() call may have requested powerwash, these
+  // settings would be saved in `this->install_plan_`. Inherit that setting.
+  install_plan_.powerwash_required = this->install_plan_.powerwash_required;
 
   CHECK_NE(install_plan_.source_slot, UINT32_MAX);
   CHECK_NE(install_plan_.target_slot, UINT32_MAX);
@@ -1347,11 +1349,13 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
       std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
   postinstall_runner_action->set_delegate(this);
 
-  // If last error code is kUpdatedButNotActive, we know that we reached this
-  // state by calling applyPayload() with switch_slot=false. That applyPayload()
-  // call would have already performed filesystem verification, therefore, we
+  // If |kPrefsPostInstallSucceeded| is set, we know that we reached this
+  // state by calling applyPayload() That applyPayload() call would have
+  // already performed filesystem verification, therefore, we
   // can safely skip the verification to save time.
-  if (last_error_ == ErrorCode::kUpdatedButNotActive) {
+  bool postinstall_succeeded = false;
+  if (prefs_->GetBoolean(kPrefsPostInstallSucceeded, &postinstall_succeeded) &&
+      postinstall_succeeded) {
     auto install_plan_action =
         std::make_unique<InstallPlanAction>(install_plan_);
     BondActions(install_plan_action.get(), postinstall_runner_action.get());
@@ -1448,6 +1452,18 @@ void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
   processor_->set_delegate(this);
   SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
   processor_->StartProcessing();
+}
+
+bool UpdateAttempterAndroid::TriggerPostinstall(const std::string& partition,
+                                                Error* error) {
+  if (error) {
+    return LogAndSetGenericError(
+        error,
+        __LINE__,
+        __FILE__,
+        __FUNCTION__ + std::string(" is not implemented"));
+  }
+  return false;
 }
 
 void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {
