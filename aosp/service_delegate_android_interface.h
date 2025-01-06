@@ -17,8 +17,6 @@
 #ifndef UPDATE_ENGINE_AOSP_SERVICE_DELEGATE_ANDROID_INTERFACE_H_
 #define UPDATE_ENGINE_AOSP_SERVICE_DELEGATE_ANDROID_INTERFACE_H_
 
-#include <inttypes.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -67,6 +65,9 @@ class ServiceDelegateAndroidInterface {
       int64_t payload_size,
       const std::vector<std::string>& key_value_pair_headers,
       Error* error) = 0;
+
+  virtual bool TriggerPostinstall(const std::string& partition,
+                                  Error* error) = 0;
 
   // Suspend an ongoing update. Returns true if there was an update ongoing and
   // it was suspended. In case of failure, it returns false and sets |error|

@@ -17,6 +17,7 @@
 #include "update_engine/aosp/update_attempter_android.h"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -56,6 +57,7 @@
 #include "update_engine/payload_consumer/payload_verifier.h"
 #include "update_engine/payload_consumer/postinstall_runner_action.h"
 #include "update_engine/update_boot_flags_action.h"
+#include "update_engine/update_metadata.pb.h"
 #include "update_engine/update_status.h"
 #include "update_engine/update_status_utils.h"
 
@@ -546,6 +548,32 @@ bool operator!=(const std::vector<unsigned char>& a, std::string_view b) {
   return !(a == b);
 }
 
+bool VerifyPayloadMetadata(Error* error,
+                           std::string_view metadata,
+                           const PayloadMetadata& payload_metadata) {
+  auto payload_verifier = PayloadVerifier::CreateInstanceFromZipPath(
+      constants::kUpdateCertificatesPath);
+  if (!payload_verifier) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to create the payload verifier from " +
+                              std::string(constants::kUpdateCertificatesPath),
+                          ErrorCode::kDownloadManifestParseError);
+  }
+  auto errorcode = payload_metadata.ValidateMetadataSignature(
+      metadata, "", *payload_verifier);
+  if (errorcode != ErrorCode::kSuccess) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to validate metadata signature: " +
+                              utils::ErrorCodeToString(errorcode),
+                          errorcode);
+  }
+  return true;
+}
+
 bool UpdateAttempterAndroid::VerifyPayloadParseManifest(
     const std::string& metadata_filename,
     std::string_view expected_metadata_hash,
@@ -619,27 +647,9 @@ bool UpdateAttempterAndroid::VerifyPayloadParseManifest(
                 << HexEncode(metadata_hash);
     }
   }
+  TEST_AND_RETURN_FALSE(
+      VerifyPayloadMetadata(error, ToStringView(metadata), payload_metadata));
 
-  auto payload_verifier = PayloadVerifier::CreateInstanceFromZipPath(
-      constants::kUpdateCertificatesPath);
-  if (!payload_verifier) {
-    return LogAndSetError(error,
-                          __LINE__,
-                          __FILE__,
-                          "Failed to create the payload verifier from " +
-                              std::string(constants::kUpdateCertificatesPath),
-                          ErrorCode::kDownloadManifestParseError);
-  }
-  errorcode = payload_metadata.ValidateMetadataSignature(
-      metadata, "", *payload_verifier);
-  if (errorcode != ErrorCode::kSuccess) {
-    return LogAndSetError(error,
-                          __LINE__,
-                          __FILE__,
-                          "Failed to validate metadata signature: " +
-                              utils::ErrorCodeToString(errorcode),
-                          errorcode);
-  }
   if (!payload_metadata.GetManifest(metadata, manifest)) {
     return LogAndSetError(error,
                           __LINE__,
@@ -711,7 +721,6 @@ void UpdateAttempterAndroid::ProcessingDone(const ActionProcessor* processor,
   LOG(INFO) << "Processing Done.";
   metric_bytes_downloaded_.Flush(true);
   metric_total_bytes_downloaded_.Flush(true);
-  last_error_ = code;
   if (status_ == UpdateStatus::CLEANUP_PREVIOUS_UPDATE) {
     TerminateUpdateAndNotify(code);
     return;
@@ -1339,6 +1348,9 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
   // Don't run postinstall, we just need PostinstallAction to switch the slots.
   install_plan_.run_post_install = false;
   install_plan_.is_resume = true;
+  // previous ApplyPayload() call may have requested powerwash, these
+  // settings would be saved in `this->install_plan_`. Inherit that setting.
+  install_plan_.powerwash_required = this->install_plan_.powerwash_required;
 
   CHECK_NE(install_plan_.source_slot, UINT32_MAX);
   CHECK_NE(install_plan_.target_slot, UINT32_MAX);
@@ -1347,11 +1359,13 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
       std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
   postinstall_runner_action->set_delegate(this);
 
-  // If last error code is kUpdatedButNotActive, we know that we reached this
-  // state by calling applyPayload() with switch_slot=false. That applyPayload()
-  // call would have already performed filesystem verification, therefore, we
+  // If |kPrefsPostInstallSucceeded| is set, we know that we reached this
+  // state by calling applyPayload() That applyPayload() call would have
+  // already performed filesystem verification, therefore, we
   // can safely skip the verification to save time.
-  if (last_error_ == ErrorCode::kUpdatedButNotActive) {
+  bool postinstall_succeeded = false;
+  if (prefs_->GetBoolean(kPrefsPostInstallSucceeded, &postinstall_succeeded) &&
+      postinstall_succeeded) {
     auto install_plan_action =
         std::make_unique<InstallPlanAction>(install_plan_);
     BondActions(install_plan_action.get(), postinstall_runner_action.get());
@@ -1448,6 +1462,164 @@ void UpdateAttempterAndroid::ScheduleCleanupPreviousUpdate() {
   processor_->set_delegate(this);
   SetStatusAndNotify(UpdateStatus::CLEANUP_PREVIOUS_UPDATE);
   processor_->StartProcessing();
+}
+
+bool ParsePayloadMetadata(Error* error,
+                          std::string_view manifest_bytes,
+                          DeltaArchiveManifest* manifest) {
+  PayloadMetadata payload_metadata;
+  ErrorCode errorcode{};
+  if (payload_metadata.ParsePayloadHeader(manifest_bytes, &errorcode) !=
+      MetadataParseResult::kSuccess) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to parse payload header: " +
+                              utils::ErrorCodeToString(errorcode),
+                          errorcode);
+  }
+  uint64_t metadata_size = payload_metadata.GetMetadataSize() +
+                           payload_metadata.GetMetadataSignatureSize();
+  if (metadata_size < kMaxPayloadHeaderSize ||
+      metadata_size > manifest_bytes.size()) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Invalid metadata size on cached manifest: " +
+                              std::to_string(metadata_size),
+                          ErrorCode::kDownloadManifestParseError);
+  }
+  TEST_AND_RETURN_FALSE(
+      VerifyPayloadMetadata(error, manifest_bytes, payload_metadata));
+
+  if (!payload_metadata.GetManifest(manifest_bytes, manifest)) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to parse manifest. Might need to install "
+                          "OTA first and re-try this API",
+                          ErrorCode::kDownloadManifestParseError);
+  }
+  return true;
+}
+
+bool UpdateAttempterAndroid::TriggerPostinstall(const std::string& partition,
+                                                Error* error) {
+  if (processor_->IsRunning()) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Already processing an update, cancel it first.",
+                          ErrorCode::kUpdateProcessing);
+  }
+  bool postinstall_succeeded = false;
+  if (!prefs_->GetBoolean(kPrefsPostInstallSucceeded, &postinstall_succeeded)) {
+    return LogAndSetError(
+        error,
+        __LINE__,
+        __FILE__,
+        "Postinstall action did not run. "
+        "OTA update must first reach the "
+        "Postinstall phase(which verfies that all partitions can be mounted) "
+        "before calling TriggerPostinstall",
+        ErrorCode::kPostinstallRunnerError);
+  }
+  if (!postinstall_succeeded) {
+    return LogAndSetError(
+        error,
+        __LINE__,
+        __FILE__,
+        "Postinstall action did not complete successfully. "
+        "OTA update must first reach the "
+        "Postinstall phase(which verfies that all partitions can be mounted) "
+        "before calling TriggerPostinstall",
+        ErrorCode::kPostinstallRunnerError);
+  }
+
+  InstallPlan install_plan;
+  install_plan.source_slot = GetCurrentSlot();
+  install_plan.target_slot = GetTargetSlot();
+  install_plan.switch_slot_on_reboot = false;
+  install_plan.run_post_install = true;
+  install_plan.download_url =
+      std::string(kPrefsManifestBytes) + ":" + install_plan_.download_url;
+
+  std::string manifest_bytes;
+  // kPrefsManifestBytes is set during DownloadAction
+  if (!prefs_->GetString(kPrefsManifestBytes, &manifest_bytes)) {
+    return LogAndSetError(
+        error,
+        __LINE__,
+        __FILE__,
+        "Cached manifest not found. TriggerPostinstall can only be called "
+        "after OTA get past at least FilesystemVerification stage",
+        ErrorCode::kDownloadStateInitializationError);
+  }
+  DeltaArchiveManifest manifest;
+  TEST_AND_RETURN_FALSE(ParsePayloadMetadata(error, manifest_bytes, &manifest));
+  ErrorCode errorcode{};
+  if (!boot_control_->GetDynamicPartitionControl()->PreparePartitionsForUpdate(
+          GetCurrentSlot(),
+          GetTargetSlot(),
+          manifest,
+          false /* should update */,
+          nullptr,
+          &errorcode)) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to PreparePartitionsForUpdate",
+                          errorcode);
+  }
+  std::vector<PartitionUpdate> partitions;
+  std::copy_if(manifest.partitions().begin(),
+               manifest.partitions().end(),
+               std::back_inserter(partitions),
+               [&partition](const PartitionUpdate& part) {
+                 return part.partition_name() == partition;
+               });
+  if (partitions.empty()) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Partition " + partition + " not found",
+                          ErrorCode::kDownloadStateInitializationError);
+  }
+  // We only want to trigger postinstall for a specific partition,
+  // and since we already checked partitions array is non-empty, reading just
+  // the first partition is enough.
+  if (!partitions[0].has_postinstall_path() ||
+      partitions[0].postinstall_path().empty()) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Partition " + partition +
+                              " does not have a postinstall script defined",
+                          ErrorCode::kDownloadStateInitializationError);
+  }
+  if (!install_plan.ParsePartitions(
+          partitions, boot_control_, manifest.block_size(), &errorcode)) {
+    return LogAndSetError(error,
+                          __LINE__,
+                          __FILE__,
+                          "Failed to parse manifest partitions. Might need "
+                          "to install OTA first and re-try this API",
+                          ErrorCode::kDownloadManifestParseError);
+  }
+  LOG(INFO) << "Trigger postinstall with this install plan: "
+            << install_plan.ToString();
+
+  auto postinstall_runner_action =
+      std::make_unique<PostinstallRunnerAction>(boot_control_, hardware_);
+  postinstall_runner_action->set_delegate(this);
+
+  auto install_plan_action = std::make_unique<InstallPlanAction>(install_plan);
+  BondActions(install_plan_action.get(), postinstall_runner_action.get());
+  processor_->EnqueueAction(std::move(install_plan_action));
+  processor_->EnqueueAction(std::move(postinstall_runner_action));
+  SetStatusAndNotify(UpdateStatus::FINALIZING);
+  ScheduleProcessingStart();
+  return true;
 }
 
 void UpdateAttempterAndroid::OnCleanupProgressUpdate(double progress) {

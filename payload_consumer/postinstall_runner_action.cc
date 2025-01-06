@@ -35,7 +35,6 @@
 #include "update_engine/common/action_processor.h"
 #include "update_engine/common/boot_control_interface.h"
 #include "update_engine/common/error_code_utils.h"
-#include "update_engine/common/platform_constants.h"
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/utils.h"
 
@@ -127,8 +126,7 @@ void PostinstallRunnerAction::PerformAction() {
   // that retains a small amount of system state such as enrollment and
   // network configuration. In both cases all user accounts are deleted.
   if (install_plan_.powerwash_required) {
-    if (hardware_->SchedulePowerwash(
-            install_plan_.rollback_data_save_requested)) {
+    if (hardware_->SchedulePowerwash()) {
       powerwash_scheduled_ = true;
     } else {
       return CompletePostinstall(ErrorCode::kPostinstallPowerwashError);
@@ -281,14 +279,20 @@ void PostinstallRunnerAction::PerformPartitionPostinstall() {
   // Runs the postinstall script asynchronously to free up the main loop while
   // it's running.
   vector<string> command = {abs_path};
-#ifdef __ANDROID__
   // In Brillo and Android, we pass the slot number and status fd.
   command.push_back(std::to_string(install_plan_.target_slot));
   command.push_back(std::to_string(kPostinstallStatusFd));
-#else
-  // Chrome OS postinstall expects the target rootfs as the first parameter.
-  command.push_back(partition.target_path);
-#endif  // __ANDROID__
+  // If install plan only contains one partition, notify the script. Most likely
+  // we are scheduled by `triggerPostinstall` API. Certain scripts might want
+  // different behaviors when triggered by `triggerPostinstall` API. For
+  // example, call scheduler API to schedule a postinstall run during
+  // applyPayload(), and only run actual postinstall work if scheduled by
+  // external async scheduler.
+  if (install_plan_.partitions.size() == 1 &&
+      !install_plan_.switch_slot_on_reboot &&
+      install_plan_.download_url.starts_with(kPrefsManifestBytes)) {
+    command.push_back("1");
+  }
 
   current_command_ = Subprocess::Get().ExecFlags(
       command,
