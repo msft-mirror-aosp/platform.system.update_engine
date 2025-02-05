@@ -44,10 +44,14 @@
 #include "update_engine/common/subprocess.h"
 #include "update_engine/common/test_utils.h"
 #include "update_engine/common/utils.h"
+#include "update_engine/common/mock_dynamic_partition_control.h"
 
 using brillo::MessageLoop;
 using chromeos_update_engine::test_utils::ScopedLoopbackDeviceBinder;
 using std::string;
+using testing::_;
+using testing::AtLeast;
+using testing::Return;
 
 namespace chromeos_update_engine {
 
@@ -95,6 +99,21 @@ class PostinstallRunnerActionTest : public ::testing::Test {
     // stored in the "disk_ext2_unittest.img" image.
     postinstall_image_ =
         test_utils::GetBuildArtifactsPath("gen/disk_ext2_unittest.img");
+    {
+      auto mock_dynamic_control =
+          std::make_unique<MockDynamicPartitionControl>();
+      mock_dynamic_control_ = mock_dynamic_control.get();
+      fake_boot_control_.SetDynamicPartitionControl(
+          std::move(mock_dynamic_control));
+    }
+    ON_CALL(*mock_dynamic_control_, FinishUpdate(_))
+        .WillByDefault(Return(true));
+    ON_CALL(*mock_dynamic_control_, MapAllPartitions())
+        .WillByDefault(Return(true));
+    ON_CALL(*mock_dynamic_control_, UnmapAllPartitions())
+        .WillByDefault(Return(true));
+    ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+        .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::NONE)));
   }
 
   // Setup an action processor and run the PostinstallRunnerAction with a single
@@ -173,6 +192,7 @@ class PostinstallRunnerActionTest : public ::testing::Test {
 
   FakeBootControl fake_boot_control_;
   FakeHardware fake_hardware_;
+  MockDynamicPartitionControl* mock_dynamic_control_;
   PostinstActionProcessorDelegate processor_delegate_;
 
   // The PostinstallRunnerAction delegate receiving the progress updates.
@@ -273,6 +293,8 @@ TEST_F(PostinstallRunnerActionTest, ProcessProgressLineTest) {
 // /postinst command which only exits 0.
 TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
 
   RunPostinstallAction(loop.dev(), kPostinstallDefaultScript, false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
@@ -284,12 +306,16 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSimpleTest) {
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootRunSymlinkFileTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   RunPostinstallAction(loop.dev(), "bin/postinst_link", false, false);
   EXPECT_EQ(ErrorCode::kSuccess, processor_delegate_.code_);
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   // Run a simple postinstall program but requiring a powerwash.
   RunPostinstallAction(loop.dev(),
@@ -306,6 +332,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootPowerwashRequiredTest) {
 // Runs postinstall from a partition file that doesn't mount, so it should
 // fail.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   RunPostinstallAction("/dev/null", kPostinstallDefaultScript, false, false);
   EXPECT_EQ(ErrorCode::kPostInstallMountError, processor_delegate_.code_);
 
@@ -316,6 +344,8 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCantMountTest) {
 }
 
 TEST_F(PostinstallRunnerActionTest, RunAsRootSkipOptionalPostinstallTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
   InstallPlan::Partition part;
   part.name = "part";
@@ -397,7 +427,10 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootSuspendResumeActionTest) {
 
 // Test that we can cancel a postinstall action while it is running.
 TEST_F(PostinstallRunnerActionTest, RunAsRootCancelPostinstallActionTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
   ScopedLoopbackDeviceBinder loop(postinstall_image_, false, nullptr);
+  EXPECT_CALL(*mock_dynamic_control_, MapAllPartitions()).Times(AtLeast(1));
 
   // Wait for the action to start and then cancel it.
   CancelWhenStarted();
@@ -411,6 +444,12 @@ TEST_F(PostinstallRunnerActionTest, RunAsRootCancelPostinstallActionTest) {
 // Test that we parse and process the progress reports from the progress
 // file descriptor.
 TEST_F(PostinstallRunnerActionTest, RunAsRootProgressUpdatesTest) {
+  ON_CALL(*mock_dynamic_control_, GetVirtualAbFeatureFlag)
+      .WillByDefault(Return(FeatureFlag(FeatureFlag::Value::LAUNCH)));
+  EXPECT_CALL(*mock_dynamic_control_, MapAllPartitions())
+      .Times(AtLeast(1))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*mock_dynamic_control_, FinishUpdate(_)).Times(AtLeast(1));
   testing::StrictMock<MockPostinstallRunnerActionDelegate> mock_delegate_;
   testing::InSequence s;
   EXPECT_CALL(mock_delegate_, ProgressUpdate(0));
