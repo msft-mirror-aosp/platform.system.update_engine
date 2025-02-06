@@ -482,6 +482,18 @@ bool UpdateAttempterAndroid::ResumeUpdate(Error* error) {
 }
 
 bool UpdateAttempterAndroid::CancelUpdate(Error* error) {
+  auto action = processor_->current_action();
+  if (action != nullptr &&
+      action->Type() == CleanupPreviousUpdateAction::StaticType()) {
+    return LogAndSetError(
+        error,
+        __LINE__,
+        __FILE__,
+        "CleanupPreviousUpdateAction is running, this action cannot be "
+        "canceled. As it often performs critical merge operations after "
+        "reboot.",
+        ErrorCode::kRollbackNotPossible);
+  }
   if (!processor_->IsRunning())
     return LogAndSetGenericError(
         error, __LINE__, __FILE__, "No ongoing update to cancel.");
@@ -1351,6 +1363,7 @@ bool UpdateAttempterAndroid::setShouldSwitchSlotOnReboot(
   // previous ApplyPayload() call may have requested powerwash, these
   // settings would be saved in `this->install_plan_`. Inherit that setting.
   install_plan_.powerwash_required = this->install_plan_.powerwash_required;
+  install_plan_.switch_slot_on_reboot = true;
 
   CHECK_NE(install_plan_.source_slot, UINT32_MAX);
   CHECK_NE(install_plan_.target_slot, UINT32_MAX);
